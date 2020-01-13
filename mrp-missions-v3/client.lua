@@ -1206,12 +1206,116 @@ AddEventHandler("mt:missiontext", function(input, timet)
 		
 		end		
 		
-		Notify("~h~~b~Check your map for mission data.~n~Hold DPAD DOWN or '[' key to view mission information.")
+		--Notify("~h~~b~Check your map for mission data.~n~Hold DPAD DOWN or '[' key to view mission information.")
+		
+		--SetTextComponentFormat("STRING")
+		--AddTextComponentString("Check your map for mission data. Press ~INPUT_SNIPER_ZOOM_OUT_SECONDARY~ to view mission info.")
+		--DisplayHelpTextFromStringLabel(0, 0, 1, 5000)
+		
+		
+		
+		if getMissionConfigProperty(input, "IsDefendTargetVehiclePassengerRadius") > 0 and getMissionConfigProperty(input, "IsDefendTarget") then 
+			--Notify("~h~~b~Within "..getMissionConfigProperty(input, "IsDefendTargetVehiclePassengerRadius")  
+			--.."m of the target's vehicle, you can press ~INPUT_WEAPON_WHEEL_PREV~ AND ~INPUT_PICKUP~ to enter it")
+			--print("made it")
+			--lineTwo ="Within " 
+			
+			TriggerEvent("mt:doisDefendVehicleHelp")
+			
+		end
+		
+		   
+		Wait(7000)
+		
+		
+		--do it again, to bypass mission chat messages on mission launch
+		HelpMessage("Check your map for mission data. Press ~INPUT_SNIPER_ZOOM_OUT_SECONDARY~ to view mission info.",true,5000)
+		
+		if DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then 
+			if blDoNightVisionToggleStates > 0 then
+				Wait(5000)
+				HelpMessage("Press ~INPUT_DUCK~ and ~INPUT_LOOK_BEHIND~ to toggle night vision modes",false,5000)
+
+			end	
+			
+			if(getMissionConfigProperty(input, "UseSafeHouseCrateDrop")) then 
+				Wait(5000)
+				HelpMessage("Call in an air supply drop using ~INPUT_WEAPON_WHEEL_PREV~ and ~INPUT_COVER~. Cost: $"..getMissionConfigProperty(input, "SafeHouseCostCrate"),false,5000)
+				Wait(5000)
+				HelpMessage("The safe house needs to be open to call in an air supply drop",false,5000)
+				
+			end
+			
+			if(getMissionConfigProperty(input, "UseSafeHouseBanditoDrop")) then 
+				Wait(5000)
+				HelpMessage("Deploy an explosive drone car with ~INPUT_WEAPON_WHEEL_NEXT~ and ~INPUT_COVER~.",true,5000)
+				Wait(5000)
+				HelpMessage("Press ~INPUT_PICKUP~ to explode the drone car once activated. Cost to deploy: $"..getMissionConfigProperty(input, "SafeHouseCostCrate"),false,5000)
+				Wait(5000)
+				HelpMessage("The safe house needs to be open to deploy, and it will count towards a safe house vehicle",false,5000)		
+				
+			end	
+		end
+		
+		--SetTextComponentFormat("STRING")
+		--AddTextComponentString("Hit ~INPUT_CONTEXT~ to do shit!")
+		--DisplayHelpTextFromStringLabel(0, 0, 1, 5000)
+		
 		
 	end
 	
 	
 end)
+
+RegisterNetEvent("mt:doisDefendVehicleHelp")
+AddEventHandler("mt:doisDefendVehicleHelp", function()
+
+	 while MissionName ~="N/A" and Active == 1  do
+       
+			
+			if GlobalTargetPed then 
+			
+			local pcoords = GetEntityCoords(GetPlayerPed(-1),true)
+				local GTVehicle = GetVehiclePedIsIn(GlobalTargetPed, false)
+				if Config.Missions[MissionName].IsDefendTarget and GlobalTargetPed and GTVehicle and 
+				DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then	
+					local v = GetEntityCoords(GTVehicle,true)
+					--print("made it:"..tostring(GetDistanceBetweenCoords(pcoords.x,pcoords.y,pcoords.z, v.x, v.y, v.z, true)))
+					if GTVehicle ~= GetVehiclePedIsIn(GetPlayerPed(-1), false)
+					and getMissionConfigProperty(MissionName, "IsDefendTargetVehiclePassengerRadius") > 0 
+					and 
+					
+					GetDistanceBetweenCoords(pcoords.x,pcoords.y,pcoords.z, v.x, v.y, v.z, true) <  
+	getMissionConfigProperty(MissionName, "IsDefendTargetVehiclePassengerRadius")
+					then
+
+						--print("hey")
+						HelpMessage("Press ~INPUT_WEAPON_WHEEL_PREV~ and ~INPUT_PICKUP~ to enter the target's vehicle",false,0)
+					
+					
+					
+					end
+
+				end
+			end
+			
+		 Wait(0)
+				
+	end
+				
+end)
+
+--credit to Vespura:
+function HelpMessage(lineOne,doBeep,duration)
+    --SetTextComponentFormat("THREESTRINGS")
+	SetTextComponentFormat("STRING")
+	AddTextComponentString(lineOne)
+	--AddTextComponentString(lineTwo or "rgg")
+   -- AddTextComponentString(lineThree or "")
+
+    -- shape (always 0), loop (bool), makeSound (bool), duration (5000 max 5 sec)
+   DisplayHelpTextFromStringLabel(0, false, doBeep, duration or 5000)
+end
 
 RegisterNetEvent("mt:removepickups")
 AddEventHandler("mt:removepickups", function(oldmission)
@@ -1316,8 +1420,10 @@ AddEventHandler('missionBlips', function(input,rMissionLocationIndex,rMissionTyp
 --print("mission1blips:"..DecorGetInt(GetPlayerPed(-1),"mrpoptin_teleportcheck",1))
 	if Config.EnableOptIn and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 1  then 
 		--print("mission2blips:"..DecorGetInt(GetPlayerPed(-1),"mrpoptout"))
-		Notify("Mission: ~r~"..Config.Missions[MissionName].MissionTitle.."~g~ has started")
-		Notify("~b~Press '~o~Q~b~' and '~o~]~b~' or ~o~RB + DPAD UP~b~ to join the mission")
+		--Notify("Mission: ~r~"..Config.Missions[MissionName].MissionTitle.."~g~")
+		
+		--Notify("~b~Press '~o~Q~b~' and '~o~]~b~' or ~o~RB + DPAD UP~b~ to join the mission")
+		
 		--return
 	--elseif Config.EnableOptIn then
 		--Notify("~g~You can leave the mission anytime with ~o~'Q' and '[' ~g~keys or ~o~RB + DPAD DOWN")
@@ -1325,8 +1431,9 @@ AddEventHandler('missionBlips', function(input,rMissionLocationIndex,rMissionTyp
 	
 	if Config.EnableSafeHouseOptIn and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 1 then 
 		--print("mission2blips:"..DecorGetInt(GetPlayerPed(-1),"mrpoptout"))
-		Notify("Mission: ~r~"..Config.Missions[MissionName].MissionTitle.."~g~ has started")
-		Notify("~b~Go to the mission's safehouse and then press '~o~]~b~' key or ~o~DPAD UP~b~ to join the mission")
+		--Notify("Mission: ~r~"..Config.Missions[MissionName].MissionTitle.."~g~")
+		
+		--Notify("~b~Go to the mission's safehouse and then press '~o~]~b~' key or ~o~DPAD UP~b~ to join the mission")
 		--return
 	--elseif Config.EnableSafeHouseOptIn then
 		--Notify("~g~You can leave the mission anytime with ~o~'Q' and '[' ~g~keys or ~o~RB + DPAD DOWN")
@@ -1704,9 +1811,9 @@ AddEventHandler('missionBlips', function(input,rMissionLocationIndex,rMissionTyp
 			SetBlipAsShortRange(blip, false)
 			
 			--override "Objective" default text when IsBountyHunt random mission
-			if getMissionConfigProperty(input, "IsBountyHunt") then
-				Config.Missions[input].Blip.Title = getMissionConfigProperty(input, "MissionTitle")
-			end
+			--if getMissionConfigProperty(input, "IsBountyHunt") then
+				--Config.Missions[input].Blip.Title = getMissionConfigProperty(input, "MissionTitle")
+			--end
 			
 			local btitle = Config.Missions[input].Blip.Title
 			BeginTextCommandSetBlipName("STRING")
@@ -1765,7 +1872,12 @@ AddEventHandler('missionBlips', function(input,rMissionLocationIndex,rMissionTyp
 		BeginTextCommandSetBlipName("STRING")
 		
 		--if tostring(getObjectiveReward(input)) ~= "N/A" then 
-			AddTextComponentString(btitle.. " ($-"..getMissionConfigProperty(MissionName, "SafeHouseCost")..")")
+		local shbliptitle = btitle.. " ($-"..getMissionConfigProperty(MissionName, "SafeHouseCost")..")" 
+		if getMissionConfigProperty(MissionName, "MissionRejuvenationFee") > 0 then 
+				shbliptitle = shbliptitle ..", Respawn: ($-"..getMissionConfigProperty(MissionName, "MissionRejuvenationFee")..")" 
+		end
+	 
+			AddTextComponentString(shbliptitle)
 		--else 
 			--AddTextComponentString(btitle)
 		--end
@@ -2654,10 +2766,13 @@ AddEventHandler('DONE', function(input,isstop,isfail,reasontext,blGoalReached)
 
 	
 	if DecorGetInt(GetPlayerPed(-1),"mrpoptin") == 1 and Config.EnableOptIn then 
-		Notify("~b~You can opt out of missions now with the '~o~Q~b~' and '~o~[~b~' keys or ~o~RB + DPAD DOWN")
+		--Notify("~b~You can opt out of missions now with the '~o~Q~b~' and '~o~[~b~' keys or ~o~RB + DPAD DOWN")
+		
+		HelpMessage("You can opt out of missions now with ~INPUT_SNIPER_ZOOM_OUT_SECONDARY~ and ~INPUT_COVER~",false,5000)		
 		--Notify("~o~'Q' and '[' ~g~keys or ~o~RB + DPAD DOWN")	
 	elseif DecorGetInt(GetPlayerPed(-1),"mrpoptin") == 1 and Config.EnableSafeHouseOptIn then
-		Notify("~b~You can opt out of missions now by pressing the '~o~[~b~' key or ~o~DPAD DOWN")
+		--Notify("~b~You can opt out of missions now by pressing the '~o~[~b~' key or ~o~DPAD DOWN")
+		HelpMessage("You can opt out of missions now with ~INPUT_SNIPER_ZOOM_OUT_SECONDARY~",false,5000)	
 	end
 	
 	
@@ -4226,8 +4341,12 @@ AddEventHandler('SpawnRandomPed', function(input,MissionType, NumPeds,NumVehicle
 		randomLocation = IsRandomSpawnAnywhereInfo[1] --randomplace
 		
 	else 
-		randomLocation = getMissionConfigProperty(input, "RandomMissionPositions")[rIndex]
-		
+		if getMissionConfigProperty(input, "RandomMissionPositions")[rIndex].SpawnAt then 
+			
+			randomLocation = getMissionConfigProperty(input, "RandomMissionPositions")[rIndex].SpawnAt
+		else 
+			randomLocation = getMissionConfigProperty(input, "RandomMissionPositions")[rIndex]
+		end
 		--print(randomLocation.x)
 		--only for isdefendtarget, goto goal missions, override for SpawnAt for random detination:
 		if MissionIsDefendTargetGoalDestIndex and
@@ -4986,7 +5105,22 @@ end
 					if getMissionConfigProperty(input, "IsDefendTarget") and 
 						spawnAircraft ==0 and not IsThisModelABoat(vehiclehash) then 
 						--print("made it path 1")
+						
+						--LoadAllPathNodes(true)
+						--print("loading path nodes1")
+						--while not AreAllNavmeshRegionsLoaded() do
+							--print("loading path nodes2")
+							--Wait(1)
+						--end					
+						--does not seem to work in city/downtown, vehicles 
+						--get placed in odd places, above commented out code did not seem to help
 						local boolval, npos, heading = GetNthClosestVehicleNodeWithHeading(rXoffset,rYoffset,rZoffset,1,9,3.0,2.5)
+						
+						
+						
+						--local boolval2, npos2, headin2g GetNthClosestVehicleNodeIdWithHeading(rXoffset,rYoffset,rZoffset,1,9,3.0,2.5)
+						
+						--print(IsVehicleNodeIdValid(npos2))
 						
 						if boolval then 
 						
@@ -8299,6 +8433,9 @@ end
 }
 ]]--
 
+
+
+
 --checks if vehicle has a turret, how many, then puts 
 --peds into them
 --**vehicle does not require turret, can be used to add any type of passenger**
@@ -8683,6 +8820,97 @@ function PutPedsIntoTurrets(PedVehicle,vehicleHash,modelHash,weaponHash,MissionT
 
 end
 
+--place player into the target's vehicle 
+--first look for turrets, then non-turret seatids
+--only place if the seatid is free
+function PutPlayerIntoTargetVehicle(PedVehicle,input)
+	--already in the vehicle
+	if PedVehicle == GetVehiclePedIsIn(GetPlayerPed(-1),false) or getMissionConfigProperty(input, "IsDefendTargetVehiclePassengerRadius") <= 0 then 
+		return
+	end
+
+	local coords = GetEntityCoords(GetPlayerPed(-1),true)
+	local v = GetEntityCoords(PedVehicle,true)
+
+	if GetDistanceBetweenCoords(coords.x,coords.y,coords.z, v.x, v.y, v.z, true) >  
+	getMissionConfigProperty(input, "IsDefendTargetVehiclePassengerRadius")
+	then
+		Notify("~h~~r~You need to be within "..getMissionConfigProperty(input, "IsDefendTargetVehiclePassengerRadius").."m of the target's vehicle to enter")
+		TriggerEvent("mt:missiontext2","~r~You need to be within "..getMissionConfigProperty(input, "IsDefendTargetVehiclePassengerRadius").."m of the target's vehicle to enter", 4000)
+		Wait(3500)
+		return
+		
+	end
+	
+	local maxseatid = GetVehicleMaxNumberOfPassengers(PedVehicle) - 1
+		--print(vehicleHash.."  maxseatid:"..maxseatid)
+	local setPed=false
+	
+		--if target is the passenger lets check driver's seat first
+		if  getMissionConfigProperty(input, "IsDefendTargetPassenger")
+		and IsVehicleSeatFree(PedVehicle, -1) then 
+			SetPedIntoVehicle(GetPlayerPed(-1), PedVehicle, -1)
+			setPed=true
+					
+			Notify("~h~~g~You moved to the target's vehicle as the driver")
+			TriggerEvent("mt:missiontext2","~g~You moved to the target's vehicle as the driver", 4000)
+			Wait(3500)
+			return
+		
+		end
+		
+		for v = -1,maxseatid,1 
+		do
+			--print("vehicleseatid:"..v)
+			--look for turret seats first...IsTurretSeat...
+			if  Citizen.InvokeNative(0xE33FFA906CE74880,PedVehicle, v) and IsVehicleSeatFree(PedVehicle, v) then
+				SetPedIntoVehicle(GetPlayerPed(-1), PedVehicle, v)
+				setPed=true
+			
+				Notify("~h~~g~You moved to a turret on the target's vehicle")
+				TriggerEvent("mt:missiontext2","~g~You moved to a turret on the target's vehicle", 4000)
+				Wait(3500)
+				return 
+			end
+			
+		end
+		
+		if not setPed then 
+		
+			for v = -1,maxseatid,1 
+			do
+				--print("vehicleseatid:"..v)
+			
+				if IsVehicleSeatFree(PedVehicle, v) then
+					SetPedIntoVehicle(GetPlayerPed(-1), PedVehicle, v)
+					setPed=true
+					if v == -1 then 
+						Notify("~h~~g~You moved to the target's vehicle as the driver")
+						TriggerEvent("mt:missiontext2","~g~You moved to the target's vehicle as the driver", 4000)
+					else 
+						Notify("~h~~g~You moved to the target's vehicle as a passenger")
+						TriggerEvent("mt:missiontext2","~g~You moved to the target's vehicle as a passenger", 4000)
+					end 
+				
+					Wait(3500)
+					return
+				end
+				
+			end		
+		
+		end
+		
+		if not setPed then--print
+			Notify("~h~~r~All seats are taken in the target's vehicle")
+			TriggerEvent("mt:missiontext2","~r~All seats are taken in the target's vehicle", 4000)
+			Wait(3500)
+		end
+		
+		
+		return setPed
+
+
+end
 
 function getFailedMessage(currentmission) 
 
@@ -11126,6 +11354,8 @@ function calcMissionStats()
 			if  DecorGetInt(ped, "mrppeddefendtarget") > 0  then
 			
 				 GlobalTargetPed = ped
+				
+			
 			end
 			
 			if not isNPCDead and DecorGetInt(ped, "mrpvpeddriverid") > 0 and GlobalTargetPed then 
@@ -12490,9 +12720,12 @@ function calcCompletionRewards(nonTargetPedsKilledByPlayer,targetPedsKilledByPla
 			--give a fraction to everyone including myself based on total players.
 			local moneytogive = playerMissionMoney/totalplayersinmission
 			
-			if playerwasinmissionG == 1 and moneytogive ~= 0 then 
+			--need to share 0 dollars as well, to not break MISSIONSHAREMONEYAMOUNT
+			--global
+			if playerwasinmissionG == 1 then --and moneytogive ~= 0 then 
 				--print("moneytogive:"..moneytogive)
 				TriggerServerEvent("sharemoney", math.ceil(moneytogive))
+			
 			end 
 					
 		else 
@@ -12539,6 +12772,7 @@ AddEventHandler("mt:sharemoney",function(playermissionmoney)
 			end 
 		end
 	else ]]--
+	--print("mt shared money called")
 	if playerwasinmissionG == 1 then 
 	
 			--print("mt:sharemoney called:$"..playermissionmoney)
@@ -12857,7 +13091,8 @@ function MissionCheck()
 					if isDefendTargetKilledByPlayer > 0  then
 						PLY = PlayerId()
 						PLYN = GetPlayerName(PLY)						
-						reasontext = PLYN.." has killed the target you were defending!"
+						--reasontext = PLYN.." has killed the target you were defending!"
+						reasontext = "The target you were defending has died"
 						message = "^1[MISSIONS]: ^2 "..PLYN.."^1 has killed the target you were defending!"
 						message2 = "^1[MISSIONS]: ^2'".. Config.Missions[MissionName].MissionTitle .."'^0 mission has failed!"					
 					
@@ -13266,6 +13501,7 @@ AddEventHandler('SecureObjRescue',function(playerPed,Ent,intType) --0 hostage, 1
 				TriggerEvent("chatMessage", "You are now rescuing the target.")
 				TriggerEvent("mt:missiontext2", "~u~(~g~Rescue Progress: ~r~".. SecureTime .."~u~)", 1000)			
 			elseif intType == 2 then 
+				
 				TriggerEvent("chatMessage", "You are now securing an objective.")
 				TriggerEvent("mt:missiontext2", "~u~(~g~Capture Progress: ~r~".. SecureTime .."~u~)", 1000)						
 			end
@@ -13285,10 +13521,37 @@ function SecureObj()
 		
         PLY = PlayerId()
         PLYN = GetPlayerName(PLY)
+		
+			--UGGH... FIX FOR WHEN PLAYER LEAVES MARKER, STOP SECURING
+			for k,v in pairs(Config.Missions[MissionName].Marker) do
+					--print("hey")
+					ply = PlayerId()
+					coords = GetEntityCoords(GetPlayerPed(ply))
+					if (Config.Missions[MissionName].Marker.Position.z <= 0.0) then
+
+						
+						--print("heya")
+						--workaround for when ground z is not found in random anywhere missions
+							if(GetDistanceBetweenCoords(coords.x,coords.y,0.0, Config.Missions[MissionName].Marker.Position.x, Config.Missions[MissionName].Marker.Position.y, 0.0, true) > Config.Missions[MissionName].Marker.Size.x / 2) then
+								--print("hey1")
+								securing = false
+							end						
+						
+					else
+						--print("heyb")
+						--workaround for when groun
+								if(GetDistanceBetweenCoords(coords.x,coords.y,coords.z, Config.Missions[MissionName].Marker.Position.x, Config.Missions[MissionName].Marker.Position.y, Config.Missions[MissionName].Marker.Position.z, true) > Config.Missions[MissionName].Marker.Size.x / 2) then
+								--print("hey2")
+								securing = false
+							end
+						
+					end
+				end		
+		
         if SecureTime > 0 and SecureTime < SecureStartTime then
 	
    
-           
+			
 			local messageProgress  = "~u~(~g~Capture Progress: ~r~".. SecureTime .."~u~)"
 			--TriggerEvent('chatMessage', "^1[MISSIONS]: ^0 Capture Progress: ^1"..(SecureTime))
 			 SecureTime = SecureTime - 1
@@ -13352,6 +13615,45 @@ function BuyObj()
 		if(getMissionConfigProperty(MissionName, "SafeHouseGiveImmediately")) then 
 			BuyTime = 0
 		end
+		
+				for k,v in pairs(Config.Missions[MissionName].MarkerS) do
+				
+						if Active == 1 and MissionName ~="N/A" and Config.Missions[MissionName].MarkerS  and ((GetGameTimer() - getMissionConfigProperty(MissionName, "SafeHouseTimeTillNextUse")) > playerSafeHouse) then
+								--print("heya")
+							ply = PlayerId()
+							coords = GetEntityCoords(GetPlayerPed(ply))
+							--workaround for when ground z is not found in random anywhere missions
+							if (Config.Missions[MissionName].MarkerS.Position.z <= 0.0) then 
+								--print("hey1")
+								if(GetDistanceBetweenCoords(coords.x,coords.y,0.0, Config.Missions[MissionName].MarkerS.Position.x, Config.Missions[MissionName].MarkerS.Position.y, 0.0, true) > Config.Missions[MissionName].MarkerS.Size.x / 2) then
+									--print("hey4")
+									buying = false
+									return
+									
+								end						
+							
+							else
+								--print("heyb:"..coords.x)
+								--hack for small radius missions
+								local testradius = Config.Missions[MissionName].MarkerS.Size.x / 2
+								if Config.Missions[MissionName].MarkerS.Size.x <= 2.0 then 
+									testradius = 1.5
+								end
+								if(GetDistanceBetweenCoords(coords.x,coords.y,coords.z, Config.Missions[MissionName].MarkerS.Position.x, Config.Missions[MissionName].MarkerS.Position.y, Config.Missions[MissionName].MarkerS.Position.z, true) > testradius) then
+										--print("hey3")
+										buying = false
+										return
+									
+								end
+							end
+						end
+				end	
+
+			--if DecorGetInt(GetPlayerPed(ply),"mrpoptout") == 1 then 
+				--print("hey buy no optin")
+				
+			--end				
+		
 		
         PLY = PlayerId()
         PLYN = GetPlayerName(PLY)
@@ -13716,10 +14018,10 @@ Citizen.CreateThread(function()
 										DecorSetInt(PlayerPed,"mrpvehsafehousemax",mrpvehsafehousemax)
 										mrpvehsafehousemaxG = mrpvehsafehousemax  
 										--print("mrpvehsafehousemax:"..tostring(DecorGetInt(PlayerPed,"mrpvehsafehousemax")))
-										local messageOwner = "You just claimed yourself a mission vehicle!~n~Cost is: $"..calcSafeHouseCost(false,true,false,MissionName)
+										local messageOwner = "You claimed yourself a mission vehicle!~n~Cost is: $"..calcSafeHouseCost(false,true,false,MissionName)
 										TriggerEvent("mt:missiontext2", messageOwner,10000)
 										--print("vehicle server id:"..DecorGetInt(PedVeh,"mrpvehsafehouseowner"))
-										Notify("~b~You just claimed yourself a mission vehicle!~n~Cost is: $"..calcSafeHouseCost(false,true,false,MissionName))
+										Notify("~b~You claimed yourself a mission vehicle!~n~Cost is: $"..calcSafeHouseCost(false,true,false,MissionName))
 										
 									else
 										TaskLeaveVehicle(PlayerPed, PedVeh, 0)
@@ -13896,7 +14198,9 @@ Citizen.CreateThread(function()
 					--DecorSetInt(GetPlayerPed(-1),"mrpoptin_teleportcheck",1)
 					--Notify("~g~You can leave the mission anytime with ~o~'Q' and '[' ~g~keys or ~o~RB + DPAD DOWN")
 					Notify("~g~You have joined the fight!")
-					Notify("~b~You can opt out after the mission is over with the '~o~Q~b~' and '~o~[~b~' keys or ~o~RB + DPAD DOWN")
+					--Notify("~b~You can opt out after the mission is over with the '~o~Q~b~' and '~o~[~b~' keys or ~o~RB + DPAD DOWN")
+					
+					HelpMessage("You can opt out after the mission is over with ~INPUT_SNIPER_ZOOM_OUT_SECONDARY~ and ~INPUT_COVER~",false,5000)
 					
 					if getMissionConfigProperty(MissionName,"TeleportToSafeHouseOnMissionStart") then 
 						doTeleportToSafeHouse(false)
@@ -13938,7 +14242,8 @@ Citizen.CreateThread(function()
 					blDoNightVisionToggleStates = 0
 					blDoNightVision = false								
 					Notify("~r~You have left the fight")
-					Notify("~b~Press '~o~Q~b~' and '~o~]~b~' or ~o~RB + DPAD UP~b~ to join a mission")
+					--Notify("~b~Press '~o~Q~b~' and '~o~]~b~' or ~o~RB + DPAD UP~b~ to join a mission")
+					HelpMessage("Press ~INPUT_SNIPER_ZOOM_IN_SECONDARY~ and ~INPUT_COVER~ to join a mission",false,5000)
 				end	
 			end
 			
@@ -13954,15 +14259,18 @@ Citizen.CreateThread(function()
 				
 				--when player is within safehouse marker
 				if buying then 
-					Notify("Mission: ~r~"..Config.Missions[MissionName].MissionTitle.."~g~ has started")
-					Notify("~b~Press ~o~']'~b~key or ~o~DPAD UP~b~ to join the mission")
+					Notify("Mission: ~r~"..Config.Missions[MissionName].MissionTitle.."~g~")
+					--Notify("~b~Press ~o~']'~b~key or ~o~DPAD UP~b~ to join the mission")
+					--print("hey")
+				HelpMessage("Press ~INPUT_SNIPER_ZOOM_IN_SECONDARY~ to join the mission",false,5000)					
 				end			
 				if (IsControlPressed(0, 42)) and buying then 
 					DecorSetInt(GetPlayerPed(-1),"mrpoptout",0)
 					DecorSetInt(GetPlayerPed(-1),"mrpoptin",1)
 					--DecorSetInt(GetPlayerPed(-1),"mrpoptin_teleportcheck",1)
 					Notify("~g~You have joined the fight!")
-					Notify("~b~You can opt out of missions after the mission is over with the '~o~[~b~' key or ~o~DPAD DOWN")
+					--Notify("~b~You can opt out of missions after the mission is over with the '~o~[~b~' key or ~o~DPAD DOWN")
+					HelpMessage("You can opt out of missions after the mission is over with ~INPUT_SNIPER_ZOOM_OUT_SECONDARY~ ",false,5000)
 					buying = false
 					--print("MADE IT")
 					if(getMissionConfigProperty(MissionName, "UseSafeHouse")) then 
@@ -14017,7 +14325,8 @@ Citizen.CreateThread(function()
 					blDoNightVisionToggleStates = 0
 					blDoNightVision = false								
 					Notify("~r~You have left the fight")
-					Notify("~b~Go to a mission's safehouse and then press ~o~]~b~' key or ~o~DPAD UP~b~ to join the mission")
+					--Notify("~b~Go to a mission's safehouse and then press ~o~]~b~' key or ~o~DPAD UP~b~ to join the mission")
+					HelpMessage("Go to a mission's safehouse and then press ~INPUT_SNIPER_ZOOM_IN_SECONDARY~ to join the mission",false,5000)
 					--Notify("'~o~]~g~' key or ~o~DPAD UP~g~ to join the mission")
 				end	
 			end
@@ -14282,9 +14591,11 @@ Citizen.CreateThread(function()
 						--workaround for when ground z is not found in random anywhere missions
 						if (Config.Missions[MissionName].Marker.Position.z <= 0.0) then 				
 							if(GetDistanceBetweenCoords(coords.x,coords.y,0.0, Config.Missions[MissionName].Marker.Position.x, Config.Missions[MissionName].Marker.Position.y, 0.0, true) < Config.Missions[MissionName].Marker.Size.x / 2) and not securing then
-								if IsPedOnFoot(GetPlayerPed(ply)) and DecorGetInt(GetPlayerPed(ply),"mrpoptout") == 0 then 
-									securing = true
-									SecureObj()
+								if IsPedOnFoot(GetPlayerPed(ply)) then 
+									if DecorGetInt(GetPlayerPed(ply),"mrpoptout") == 0 then
+										securing = true
+										SecureObj()
+									end
 								else
 									securing = false
 								end
@@ -14293,12 +14604,16 @@ Citizen.CreateThread(function()
 						
 						else
 							if(GetDistanceBetweenCoords(coords.x,coords.y,coords.z, Config.Missions[MissionName].Marker.Position.x, Config.Missions[MissionName].Marker.Position.y, Config.Missions[MissionName].Marker.Position.z, true) < Config.Missions[MissionName].Marker.Size.x / 2) and not securing then
-								if IsPedOnFoot(GetPlayerPed(ply)) and DecorGetInt(GetPlayerPed(ply),"mrpoptout") == 0 then 
-									securing = true
-									SecureObj()
+								if IsPedOnFoot(GetPlayerPed(ply)) then 
+									if DecorGetInt(GetPlayerPed(ply),"mrpoptout") == 0 then
+										securing = true
+										SecureObj()
+									end
 								else
 									securing = false
 								end
+							
+							
 								
 							end
 						end
@@ -14339,11 +14654,20 @@ Citizen.CreateThread(function()
 								if(GetDistanceBetweenCoords(coords.x,coords.y,coords.z, Config.Missions[MissionName].MarkerS.Position.x, Config.Missions[MissionName].MarkerS.Position.y, Config.Missions[MissionName].MarkerS.Position.z, true) < testradius) and not buying then
 									if IsPedOnFoot(GetPlayerPed(ply)) then 
 										buying = true
+										--print("BUYING")
 										if DecorGetInt(GetPlayerPed(ply),"mrpoptout") == 0 then 
-											
+											--print("hey buy")
 											BuyObj()
 										end
 									else
+										--print("hey false")
+										buying = false
+									end
+									
+								else
+								
+									if DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 1 then
+										--print("hey out")
 										buying = false
 									end
 									
@@ -14378,6 +14702,26 @@ Citizen.CreateThread(function()
 		
 
 		end		
+
+		
+		
+	
+	--if DPAD LEFT AND LB PRESSED ('E' key and 'SCROLLWHEEL UP' key)
+		 if Active == 1 and MissionName ~="N/A" and IsControlPressed(0, 15) and  IsControlPressed(0, 38) then
+			
+			if Config.Missions[MissionName].IsDefendTarget and GlobalTargetPed and GetVehiclePedIsIn(GlobalTargetPed, false) and 
+			DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then
+				
+				PutPlayerIntoTargetVehicle(GetVehiclePedIsIn(GlobalTargetPed, false),MissionName)
+			
+			else
+				if Config.Missions[MissionName].IsDefendTarget and GlobalTargetPed then 
+					Notify("~r~Cannot find the target's vehicle to enter")
+					Wait(3500)
+				end
+			end
+		end		
+			
 		
         if Active == 1 and MissionName ~="N/A" and IsControlPressed(0, 43) and not IsPlayerFreeAiming(PlayerId()) then
 			if DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then
@@ -14504,9 +14848,10 @@ Citizen.CreateThread(function()
 					SetTextDropShadow()
 					SetTextOutline()
 					SetTextEntry("STRING")
-					AddTextComponentString("Current Active Mission: ~r~"..Config.Missions[MissionName].MissionTitle)
-					DrawText(0.705, 0.915)
+					AddTextComponentString("Current Mission: ~r~"..Config.Missions[MissionName].MissionTitle)
+					DrawText(0.705, 0.895)
 					
+					--[[
 					SetTextFont(0)
 					SetTextProportional(1)
 					SetTextScale(0.0, 0.3)
@@ -14518,6 +14863,8 @@ Citizen.CreateThread(function()
 					SetTextEntry("STRING")
 					AddTextComponentString("~b~Press '~o~Q~b~' and '~o~]~b~' or ~o~RB + DPAD UP~b~ to join")
 					DrawText(0.705, 0.955)
+					]]--
+					HelpMessage("Press ~INPUT_SNIPER_ZOOM_IN_SECONDARY~ and ~INPUT_COVER~ to join the mission",false,0)
 					
 				elseif Config.EnableSafeHouseOptIn and Config.EnableOptInHUD then
 					
@@ -14532,7 +14879,7 @@ Citizen.CreateThread(function()
 					SetTextEntry("STRING")
 					AddTextComponentString("Current Active Mission: ~r~"..Config.Missions[MissionName].MissionTitle)
 					DrawText(0.705, 0.915)
-					
+					--[[
 					SetTextFont(0)
 					SetTextProportional(1)
 					SetTextScale(0.0, 0.3)
@@ -14544,6 +14891,9 @@ Citizen.CreateThread(function()
 					SetTextEntry("STRING")
 					AddTextComponentString("~b~Go to the mission's safehouse and then press '~o~]~b~' key or ~o~DPAD UP~b~ to join the mission")
 					DrawText(0.705, 0.955)
+					]]--
+					HelpMessage("Go to the mission's safehouse and then press ~INPUT_SNIPER_ZOOM_IN_SECONDARY~ to join the mission",false,0)					
+					
 					
 				end
 				
@@ -15211,29 +15561,124 @@ function GetClosestPlayer()
 	return closestPlayer, closestDistance
 end
 
+--Do MissionRejuvenationFee
+--which merely acts as a penalty for players dying during a mission
+--when > 0
+function doMissionRejuvenationFee()
+	if (Active == 1) and  MissionName ~="N/A" then
+		if getMissionConfigProperty(MissionName, "MissionRejuvenationFee") > 0 then
+
+			local currentmoney = 0
+			local rejuvcost = getMissionConfigProperty(MissionName, "MissionRejuvenationFee")
+			local totalmoney = 0		
+			
+			local _,currentmoney = StatGetInt('MP0_WALLET_BALANCE',-1)
+			playerMissionMoney =  0 - rejuvcost
+			totalmoney =  currentmoney - rejuvcost		
+				
+			if UseESX then 
+				TriggerServerEvent("paytheplayer", totalmoney)
+				TriggerServerEvent("UpdateUserMoney", totalmoney)
+			else
+					--DecorSetInt(GetPlayerPed(-1),"mrpplayermoney",totalmoney)
+				DecorSetInt(GetPlayerPed(-1),"mrpplayermoney",DecorGetInt(GetPlayerPed(-1),"mrpplayermoney") + playerMissionMoney)			
+				mrpplayermoneyG = DecorGetInt(GetPlayerPed(-1),"mrpplayermoney")			
+				StatSetInt('MP0_WALLET_BALANCE',totalmoney, true)
+			end
+			if SHOWWASTEDMESSAGE then 
+				--print("HEY")
+				MISSIONSHOWMESSAGE="~r~Mission Rejuvenation Fee: ~g~$"..getMissionConfigProperty(MissionName, "MissionRejuvenationFee")
+			else 
+				
+				--TriggerEvent("mt:missiontext2","~r~Mission Rejuvenation Fee: ~g~$"..getMissionConfigProperty(MissionName, "MissionRejuvenationFee"), 4000)
+				Notify("~h~~r~Mission Rejuvenation Fee: ~g~$"..getMissionConfigProperty(MissionName, "MissionRejuvenationFee"))
+			end
+			
+		else 			
+
+			MISSIONSHOWMESSAGE=" "
+		end
+	else 
+		MISSIONSHOWMESSAGE=" "
+	end
+
+	
+end
+
+--being hassled by mission contact :-)
+function doSMSRejuvenationMessage(input) 
+	
+	local sms_pos = math.random(1, #getMissionConfigProperty(input, "SMS_ContactNames"))
+	
+	local sms_subpos = math.random(1, #getMissionConfigProperty(input, "SMS_RejuvenationSubjects"))
+	local sms_mespos = math.random(1, #getMissionConfigProperty(input, "SMS_RejuvenationMessages"))
+	
+	
+	SMS_Message(getMissionConfigProperty(input, "SMS_ContactPics")[sms_pos], getMissionConfigProperty(input, "SMS_ContactNames")[sms_pos], getMissionConfigProperty(input, "SMS_RejuvenationSubjects")[sms_subpos], getMissionConfigProperty(input, "SMS_RejuvenationMessages")[sms_mespos], getMissionConfigProperty(input, "SMS_PlaySound"))	
+	
+
+end
+
 --"start baseevents" needs to be on in server.cfg:
 AddEventHandler("baseevents:onPlayerDied", function(player, reason, pos)
      --  print("mrprescuecount"..DecorGetInt(GetPlayerPed(-1),"mrprescuecount"))
 	mrprescuecountG = DecorGetInt(GetPlayerPed(-1),"mrprescuecount")
 	mrpobjectivecountG = DecorGetInt(GetPlayerPed(-1),"mrpobjrescuecount")
-	if SHOWWASTEDMESSAGE then 
-		MISSIONSHOWRESULT = true
-		BLDIDTIMEOUT = false
-		MISSIONSHOWTEXT="WASTED"
-		MISSIONSHOWMESSAGE=" "	
-	end
+	--print("made it died")
+	if (Active == 1) and  MissionName ~="N/A" and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then
+		if SHOWWASTEDMESSAGE  then 
+			MISSIONSHOWRESULT = true
+			BLDIDTIMEOUT = false
+			MISSIONSHOWTEXT="WASTED"
+			if getMissionConfigProperty(MissionName, "MissionRejuvenationFee") > 0 then
+				doMissionRejuvenationFee()		
+			else 
+				MISSIONSHOWMESSAGE=" "
+			end
+		elseif getMissionConfigProperty(MissionName, "MissionRejuvenationFee") > 0 then 
+			doMissionRejuvenationFee()	
+		end
+		
+		--MissionRejuvenationSMSChance % chance per death of being harrassed by a mission contact!
+		if getMissionConfigProperty(MissionName, "MissionRejuvenationSMS") and math.random(1,100) <= getMissionConfigProperty(MissionName, "MissionRejuvenationSMSChance")  then 
+			
+			Wait(math.random(3000,7000))
+			doSMSRejuvenationMessage(MissionName) 
+		end		
+		
+		
+	end 
 end)
 --"start baseevents" needs to be on in server.cfg:
 AddEventHandler("baseevents:onPlayerKilled", function(player, killer, reason, pos)
 	-- print("mrp2rescuecount"..DecorGetInt(GetPlayerPed(-1),"mrprescuecount"))
 	mrprescuecountG = DecorGetInt(GetPlayerPed(-1),"mrprescuecount")
 	mrpobjectivecountG = DecorGetInt(GetPlayerPed(-1),"mrpobjrescuecount")
-	if SHOWWASTEDMESSAGE then 
-		MISSIONSHOWRESULT = true
-		BLDIDTIMEOUT = false
-		MISSIONSHOWTEXT="WASTED"
-		MISSIONSHOWMESSAGE=" "	
-	end
+	--print("made it killed")
+	if (Active == 1) and  MissionName ~="N/A" and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then
+		if SHOWWASTEDMESSAGE  then 
+			MISSIONSHOWRESULT = true
+			BLDIDTIMEOUT = false
+			MISSIONSHOWTEXT="WASTED"
+			if getMissionConfigProperty(MissionName, "MissionRejuvenationFee") > 0 then
+				doMissionRejuvenationFee()		
+			else 
+				MISSIONSHOWMESSAGE=" "
+			end
+		elseif getMissionConfigProperty(MissionName, "MissionRejuvenationFee") > 0 then 
+			doMissionRejuvenationFee()	
+		end
+		
+		--MissionRejuvenationSMSChance % chance per death of being harrassed by a mission contact!
+		if getMissionConfigProperty(MissionName, "MissionRejuvenationSMS") and math.random(1,100) <= getMissionConfigProperty(MissionName, "MissionRejuvenationSMSChance")  then 
+		
+			Wait(math.random(3000,7000))
+			doSMSRejuvenationMessage(MissionName) 
+		end				
+		
+	end 
+	
+	
 end)
 
 
@@ -15295,6 +15740,11 @@ AddEventHandler("playerSpawned", function(spawn)
 		--GHK End blackops preferred variations	
 	
 	
+	if MissionName ~="N/A" and Active == 1 then
+		--Wait(7000)
+		
+		HelpMessage("Check your map for mission data. Press ~INPUT_SNIPER_ZOOM_OUT_SECONDARY~ to view mission info.",true,5000)	
+	end	
 
 	 if(firstjoin) then --should be a first time connecting player
 		--lets see if this is the only player and if a mission is running
@@ -15359,6 +15809,13 @@ AddEventHandler("playerSpawned", function(spawn)
 		doTeleportToSafeHouse(true)
 	
 	end
+	
+	if MissionName ~="N/A" and Active == 1 then
+		Wait(7000)
+		
+		--do it again, to bypass mission chat messages on mission launch
+		HelpMessage("Check your map for mission data. Press ~INPUT_SNIPER_ZOOM_OUT_SECONDARY~ to view mission info.",false,5000)	
+	end		
 	  
 end)
 
@@ -16673,7 +17130,7 @@ while true do
 				TriggerEvent("mt:missiontext2", message, 10000)
 			
 			end
-				
+			Wait(3500)	
 		elseif ((IsControlPressed(0, 44) and IsControlPressed(0, 14)) or (IsControlPressed(0, 34) and IsControlPressed(0, 35))) and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then
 			
 		--RB and dpad left (E + SCROLLWHEEL DOWN)
@@ -16700,7 +17157,7 @@ while true do
 								DecorSetInt(GetPlayerPed(-1),"mrpvehsafehousemax",mrpvehsafehousemax)
 								mrpvehsafehousemaxG = mrpvehsafehousemax
 								playerSafeHouse = GetGameTimer()
-								local messageOwner = "You just claimed yourself a mission vehicle!~n~Cost is: $"..calcSafeHouseCost(true,true,false,MissionName)
+								local messageOwner = "You claimed yourself a mission vehicle!~n~Cost is: $"..calcSafeHouseCost(true,true,false,MissionName)
 								TriggerEvent("mt:missiontext2", messageOwner,10000)									
 							else 
 									local messageOwner = "Please try again to deploy a rc remote detonate bomb"
@@ -16885,7 +17342,7 @@ Citizen.CreateThread(function()
 			
 
 				if string.len(MISSIONSHOWTEXT) > 0 and MISSIONSHOWTEXT ~="WASTED" then
-				 --print("hey")
+				-- print("hey")
 					local starttime= GetGameTimer()
 					while not MISSIONSHAREMONEYAMOUNT do
 						Wait(1)
@@ -16940,7 +17397,7 @@ end)
 --END SCALEFORM FUNCTIONS
 
 --weather/time 
---[[
+
 Citizen.CreateThread(function()
     while true do
 		SetWeatherTypePersist("EXTRASUNNY")
@@ -16957,4 +17414,4 @@ Citizen.CreateThread(function()
         NetworkOverrideClockTime(12, 1, 1)
     end
 end)
-]]--
+

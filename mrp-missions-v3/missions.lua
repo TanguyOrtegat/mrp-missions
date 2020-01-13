@@ -34,6 +34,32 @@ Config.DoHelpScreens = false
 --now replaced by SMS texts.
 Config.ShowMissionIntroText=false
 
+ --acts as a penalty for players dying during a mission.
+ --Set to 0 for no fee and no notification
+Config.MissionRejuvenationFee=1000
+
+--Does player get harrassed/encouraged by mission contact when they die?
+--1 in 4 chance per death to be sent. 
+Config.MissionRejuvenationSMS=true
+
+-- % chance of messaging? Values from 0 for no chance to 100 for always
+Config.MissionRejuvenationSMSChance=25
+
+--"Harrasment"/"encourgement" messages sent to player from mission contact
+--1 in 4 chance per death to be sent. Random subject and random message then sent from below:
+Config.SMS_RejuvenationSubjects={"Are you OK?","Whats going on?","Can you handle this?","Wait for Reinforcements?"}
+
+Config.SMS_RejuvenationMessages={"You sure you are up for this? You're getting your ass handed to you",
+
+"This mission might be too hard for you. Maybe wait for some reinforcements?",
+
+"Whats going on down there? Are you able to finish this mission...on time?",
+
+"Are you coming at this the right way? Maybe try a different tactic?",
+
+}
+
+
 --THESE MISSION SMS SETTINGS SHOULD BE SET PER MISSION:
 --LENGTH OF SMS_ContactPics, SMS_ContactNames, etc... NEED TO BE THE SAME LENGTH:
 --ONE WILL BE CHOSEN RANDOMLY, BUT SAME INDEX FOR ALL ARRAYS
@@ -87,7 +113,8 @@ Config.EnableOptIn = false
 Config.EnableSafeHouseOptIn = false
 --When set to true, when a mission is active and a player is not opted in, it displays text in the lower RHS 
 --that there is an active mission with directions on how to join:
-Config.EnableOptInHUD = false
+--KEEP THIS TRUE NOW:
+Config.EnableOptInHUD = true
 --This forces all players to opt out of the mission system at mission end, forcing them to opt back in for the next mission. 
 --Does not remove weapons, but removes buffs:
 Config.ForceOptOutAtMissionEnd = false
@@ -701,6 +728,10 @@ Config.IsDefendTargetVehicleAttackDistance = 150.0
 --not used:
 Config.IsDefendTargetCheckLoop=false
 
+--How close to the IsDefendTargetVehicle does the player need to be 
+--in order to be able to teleport to a free seat?
+Config.IsDefendTargetVehiclePassengerRadius=25.0
+
 --Make the target keep to set task, usually driving...
 Config.IsDefendTargetSetBlockingOfNonTemporaryEvents=false
 
@@ -739,11 +770,9 @@ Config.IsDefendTargetRandomAircraft = {
 }
 
 Config.IsDefendTargetRandomBoat = {
-"dinghy4",
+
 "seashark",
-"toro2",
-"marquis",
-"jetmax"
+
 }
 
 --****END IsRandom -> IsDefend -> IsDefendTarget configuration
@@ -946,7 +975,6 @@ Config.RandomMissionIsBountyOverrideVehPeds = {"hc_hacker","hc_gunman","u_m_m_ba
 
 Config.RandomMissionVehicles = {	
 	"apc",
-	"apc",
 	"barrage",
 	"halftrack",
 	"dune3",
@@ -1084,7 +1112,7 @@ Config.Missions = {
 	MissionSpaceTime = 10000,
 	MissionTriggerRadius = 1000.0,
 	Type = "Objective",
-	SMS_Subject="Mission: Blackwater",
+	SMS_Subject="Construction Site",
 	SMS_Message="Mercenaries for hire have taken over a construction site for ransom. We need help to secure it",
 	SMS_Message2="Make it to the middle of the top level of the structure in downtown to secure it.",
 	SMS_Message3="They are well armed and have heavy vehicular ordinance, so do not go down there naked",		
@@ -1108,7 +1136,7 @@ Config.Missions = {
 
 
     Blip = {
-      Title = "Mission Objective",
+      Title = "Mission: Secure the Construction Site",
       Position = { x = -146.84, y = -1080.72, z = 42.02 },
       Icon     = 58,
       Display  = 4,
@@ -1214,7 +1242,7 @@ Config.Missions = {
 	MissionMessage = "Rescue TV celebrity Des Proud. He is being held captive at a Church of Chantixology mansion",	
 	Type = "HostageRescue",	
 	MissionTriggerRadius = 500.0,
-	SMS_Subject="Help Me!!",
+	SMS_Subject="Get me out of here!",
 	SMS_Message="Hey man, this is Des Proud. Im being held captive by the Church of Chantixology",
 	SMS_Message2="They are holding me and my pet coyote indefinitely at one of their mansions in the Vinewood Hills",
 	SMS_Message3="Break us out of here so I can get back on TV to complete my nature special",		
@@ -1231,7 +1259,7 @@ Config.Missions = {
 	SMS_PassedMessage="Thank you brother. Take the reward money, its well deserved. Peace.",	
 
     Blip = {
-      Title = "Mission: OT VIII",
+      Title = "Mission: Liberate Des Proud and his pet coyote",
       Position = { x = -138.08, y = 869.04, z = 232.69},
       Icon     = 58,
       Display  = 4,
@@ -1393,7 +1421,7 @@ Config.Missions = {
 	--KillReward = 150,
 
     Blip = {
-      Title = "Mission Objective",
+      Title = "Mission: Battle for Fort Zancudo",
       Position = { x = -2074.59, y = 1475.03, z = 275.15 },
       Icon     = 58,
       Display  = 4,
@@ -1549,7 +1577,7 @@ Config.Missions = {
 	SMS_PassedMessage="Thank you for your service",		
 
     Blip = {
-      Title = "Mission: Takedown",
+      Title = "Mission: Eliminate the mercenaries",
       Position = { x = 0.30, y = -399.48, z = 39.43 },
       Icon     = 58,
       Display  = 4,
@@ -1653,7 +1681,7 @@ Config.Missions = {
 	
 
     Blip = {
-      Title = "Mission: Wonderland",
+      Title = "Mission: Take out the maniac and rescue the stripper",
       Position = {x = 275.7607, y = 1686.501, z = 237.8363},
       Icon     = 58,
       Display  = 4,
@@ -1750,7 +1778,21 @@ Config.Missions = {
 	SMS_FailedSubject="Pigs",
 	SMS_FailedMessage="You should have stayed away, this is much bigger than you",
 	SMS_PassedSubject="Pigs",
-	SMS_PassedMessage="You stole the secret files and sold them for ransom yourself.",			
+	SMS_PassedMessage="You stole the secret files and sold them for ransom yourself.",
+
+	MissionRejuvenationSMS=true,
+	MissionRejuvenationSMSChance=100,
+	SMS_RejuvenationSubjects={"The Governor of what?","Die you pig!","Justice","Stay away"},
+
+	SMS_RejuvenationMessages={"Down with the imperialst police state!",
+
+	"I don't give a crap about you... or your governor",
+
+	"What better example than to let the governor and his cronies perish?",
+	
+	"These military codes will now be decrypted in less than an hour which we use to free San Andreas",
+
+	},			
 	
 	
     Blip = {
@@ -2085,7 +2127,7 @@ Events = {
 	SMS_PassedMessage="You stole the secret files and sold them for ransom yourself.",	
 
     Blip = {
-      Title = "Mission: Secure narcotics from crashed plane",
+      Title = "Mission: Secure narcotics from the crashed plane",
       Position = {x = 302.86, y = 4373.86, z = 51.61},
       Icon     = 58,
       Display  = 4,
@@ -2366,7 +2408,7 @@ Events = {
 	
 	SMS_Subject="Fury Road",
 	SMS_Message="We are taking over the oil field, and you better step out of the way",
-	SMS_Message2="I salute my half-life War Boys who will ride with me eternal on the highways of Valhalla.",
+	SMS_Message2="I salute my half-life War Boys who will ride with me eternal on the highways of Valhalla!",
 	--SMS_Message3="The Governor's plane was brought down. We have captured him and obtained his secret files.",	
 		
 	SMS_ContactPics={"DIA_BRAD",
@@ -2379,6 +2421,18 @@ Events = {
 	SMS_FailedMessage="You should have stayed away, this is much bigger than you",
 	SMS_PassedSubject="Valhalla!",
 	SMS_PassedMessage="Return my treasures to me, and I myself will carry you through the gates of Valhalla.",
+	
+	MissionRejuvenationSMS=true,
+	MissionRejuvenationSMSChance=50,
+	SMS_RejuvenationSubjects={"Ah, mediocre!","Thats my property!","HAHAHA!","Step Aside!"},
+
+	SMS_RejuvenationMessages={"Well done my War Boys! You will ride eternal, shiny and chrome!",
+
+	"I am your redeemer. It is by my hand you will rise from the ashes of this world",
+
+	"You should have stayed away, this is much bigger than you",
+
+	},		
 	
 
     Blip2 = {
@@ -2712,7 +2766,7 @@ Events = {
 	SMS_PassedMessage="The legends were true afterall! Enjoy your reimbursement",		
 	
 	Blip = {
-      Title = "Objective",
+      Title = "Mission: Capture the goods",
       Position = { x = -10000, y = 0, z =  0},
       Icon     = 58,
       Display  = 4,
@@ -2844,8 +2898,8 @@ Events = {
 	
 	SMS_Subject="Protect the Asset",
 	SMS_Message="An asset is being held at Los Santos Police Station in a cell. She is in severe danger though",
-	SMS_Message2="Hostiles are assaulting the police station to take her out. Stop them at all cost",
-	--SMS_Message3="They awoke something in the darkness. Legends have it of a lost treasure. Will you find it for me?",	
+	SMS_Message2="Hostiles are assaulting the police station to take her out. We need to stop them at all cost",
+	SMS_Message3="Will you help?",	
 		
 	SMS_ContactPics={"HC_N_GUS",
 	},
@@ -3040,23 +3094,36 @@ Events = {
 	
 	
 	SMS_Subject="The Road Warrior",
-	SMS_Message="The Road Warrior cannot escape! Capture him! Resistance is futile!",
-	SMS_Message2="I salute my half-life War Boys who will ride with me eternal on the highways of Valhalla.",
+	SMS_Message="The Road Warrior cannot escape! Put a bullet in his skull. Stop the rig. Return my treasures to me!",
+	SMS_Message2="I salute my half-life War Boys who will ride with me eternal on the highways of Valhalla!",
 	--SMS_Message3="You will ride eternal, shiny and chrome",	
 		
 	SMS_ContactPics={"DIA_BRAD",
 	},
 	SMS_ContactNames={"Immortan Joe",
 	},
+	
 	SMS_NoFailedMessage=true,
 	SMS_NoPassedMessage=true,
 	SMS_FailedSubject="HAHA",
 	SMS_FailedMessage="You should have stayed away, this is much bigger than you",
 	SMS_PassedSubject="Valhalla!",
 	SMS_PassedMessage="Return my treasures to me, and I myself will carry you through the gates of Valhalla.",
+	
+	MissionRejuvenationSMS=true,
+	MissionRejuvenationSMSChance=50,
+	SMS_RejuvenationSubjects={"Ah, mediocre!","Thats my property!","HAHAHA!","Step Aside!"},
+
+	SMS_RejuvenationMessages={"Well done my War Boys! You will ride eternal, shiny and chrome!",
+
+	"I am your redeemer. It is by my hand you will rise from the ashes of this world",
+
+	"You should have stayed away, this is much bigger than you",
+
+	},		
 
     Blip2 = {
-      Title = "Protect the road warrior",
+      Title = "Mission: Protect the road warrior",
       Position = { x = 1511.08, y = 3485.06, z = 36.37}, --{x = 1453.72, y = -2282.69, z = 67.47},  x = 1872.28, y = 3219.21, z = 45.4
       Icon     = 58,
       Display  = 4,
@@ -3224,7 +3291,7 @@ Events = {
 	MissionTriggerStartPoint = {x = 88.67, y = 6336.96, z = 31.23},
 	MissionTriggerRadius = 5.0,
 	
-	SMS_Subject="Fast and Furious",
+	SMS_Subject="Rescue the agent",
 	SMS_Message="Hey. I could use a hand here, to evade some terrorists hot on my tail",
 	SMS_Message2="They are none too happy they were inflitrated and I got their secret files. I need evac ASAP!",
 	--SMS_Message3="The Governor's plane was brought down. We have captured him and obtained his secret files.",	
@@ -3977,7 +4044,7 @@ Events = {
 	
 	SMS_Subject="Take out the targets",
 	SMS_Message="Our Intel shows where the leaders of a heavily armed  mercenary group are",
-	SMS_Message2="We need help to eliminate the danger. They are very dangerous and well protected",
+	SMS_Message2="We need help to eliminate the threat. They are very dangerous and well protected",
 	SMS_Message3="You think you can handle this?",	
 		
 	--SMS_ContactPics={"DIA_PRINCESS",
@@ -4190,7 +4257,7 @@ RandomMissionVehicleWeapons = {0x1B06D571},
 
 	
 	Blip = {
-      Title = "Objective",
+      Title = "Mission: Protect the compromised agent",
       Position = { x = -10000, y = 0, z =  0},
       Icon     = 58,
       Display  = 4,
@@ -4199,7 +4266,7 @@ RandomMissionVehicleWeapons = {0x1B06D571},
     },
 	
 	Blip2 = {
-      Title = "Objective",
+      Title = "Mission: Protect the compromised agent",
       Position = { x = -10000, y = 0, z =  0},
       Icon     = 58,
       Display  = 4,
@@ -4431,7 +4498,7 @@ Mission20 = {
 	
 	
 	Blip = {
-      Title = "Objective",
+      Title = "Mission: Find and eliminate the targets around the map",
       Position = { x = -10000, y = 0, z =  0},
       Icon     = 58,
       Display  = 4,
@@ -4636,7 +4703,7 @@ Mission20 = {
 	
 	
 	Blip = {
-      Title = "Objective",
+      Title = "Mission: Find and rescue the missing people around the map",
       Position = { x = -10000, y = 0, z =  0},
       Icon     = 58,
       Display  = 4,
@@ -4814,7 +4881,7 @@ Mission22 = {
 	--RandomLocation = true, --for completely random location.. 
 	
 	Blip = {
-      Title = "Objective",
+      Title = "Mission: Capture the very important goods",
       Position = { x = -10000, y = 0, z =  0},
       Icon     = 58,
       Display  = 4,
@@ -5019,7 +5086,7 @@ RandomMissionPeds ={"hc_hacker","hc_gunman","ig_tomepsilon","u_m_m_bankman","u_m
 	SMS_PassedMessage="Los Santos is safe and sound from the attack",
 	
 	Blip = {
-      Title = "Objective",
+      Title = "Mission: Take out the enemy targets",
       Position = { x = -10000, y = 0, z =  0},
       Icon     = 58,
       Display  = 4,
@@ -5193,7 +5260,7 @@ StartMessage = "Ensure that the asset and their vehicle~n~ make it to the destin
 	--what x and y coordinate range should these mission spawn in?
 	--RandomLocation = true, --for completely random location..
 	
-	SMS_Subject="The Gauntlet",
+	SMS_Subject="Escort Mission",
 	SMS_Message="We need help to ensure that an asset and their vehicle make it to the destination",
 	SMS_Message2="They will need an escort. Are you up for this?",
 	--SMS_Message3="Anyone up for this?",	
@@ -5210,19 +5277,19 @@ StartMessage = "Ensure that the asset and their vehicle~n~ make it to the destin
 	SMS_PassedMessage="Los Santos is safe and sound from the attack",	
 
 	
-	Blip = {
-      Title = "Objective",
+    Blip = {
+      Title = "Destination ($5000)",
       Position = { x = -10000, y = 0, z =  0},
-      Icon     = 58,
+      Icon     = 38,
       Display  = 4,
       Size     = 1.2,
       Color    = 1,
     },
 	
-	Blip2 = {
-      Title = "Objective",
+    Blip2 = {
+      Title = "Destination ($5000)",
       Position = { x = -10000, y = 0, z =  0},
-      Icon     = 58,
+      Icon     = 38,
       Display  = 4,
       Size     = 1.2,
       Color    = 1,
@@ -5301,7 +5368,7 @@ StartMessage = "Ensure that the asset and their vehicle~n~ make it to the destin
 	
 	{  x = 1318.13, y = 3624.67, z = 33.5,  MissionTitle="The Gauntlet",
 		Blip2 = { --safehouse blip
-		  Title = "Mission Start",
+		  Title = "Mission Start: Rendevouz with the asset",
 		  Position = { x = 1515.16, y = 3064.27, z = 41.3}, -- x = 2365.07, y = 2958.56, z = 49.06 --{ x = 1944.96, y = 3150.6, z = 46.77}, --x = 1345.43, y = 3152.51, z = 40.41
 		  Icon     = 58,
 		  Display  = 4,
@@ -5312,7 +5379,7 @@ StartMessage = "Ensure that the asset and their vehicle~n~ make it to the destin
 		  --Used for AddBlipForRadius with IsDefend Missions
 		},
 		Blip = { --safehouse blip
-		  Title = "Destination",
+		  Title = "Destination ($5000)",
 		  Position = { x = 890.31, y = 3717.53, z = 29.66}, -- x = 2365.07, y = 2958.56, z = 49.06 --{ x = 1944.96, y = 3150.6, z = 46.77}, --x = 1345.43, y = 3152.51, z = 40.41
 		  Icon     = 38,
 		  Display  = 4,
@@ -5448,6 +5515,7 @@ StartMessage = "Ensure that the asset and their plane~n~ make it to the destinat
 	SafeHousePedLeaders = {},
 	SafeHouseProps = {"hei_prop_carrier_crate_01a"},
 	SafeHouseGiveImmediately = true,
+	IsDefendTargetVehiclePassengerRadius=500.0,
 	
 	--RandomMissionDoLandBattle=false, 
 	TeleportToSafeHouseMinDistance = 30,
@@ -5499,7 +5567,7 @@ StartMessage = "Ensure that the asset and their plane~n~ make it to the destinat
 	--RandomLocation = true, --for completely random location..
 	
 	
-	SMS_Subject="Top Gun",
+	SMS_Subject="Escort Mission",
 	SMS_Message="We need help to ensure that an asset and their aircraft make it to the destination",
 	SMS_Message2="They will need an escort. Are you up for this?",
 	--SMS_Message3="Anyone up for this?",	
@@ -5516,18 +5584,18 @@ StartMessage = "Ensure that the asset and their plane~n~ make it to the destinat
 	SMS_PassedMessage="Los Santos is safe and sound from the attack",	
 	
 	Blip = {
-      Title = "Objective",
+      Title = "Destination ($5000)",
       Position = { x = -10000, y = 0, z =  0},
-      Icon     = 58,
+      Icon     = 38,
       Display  = 4,
       Size     = 1.2,
       Color    = 1,
     },
 	
 	Blip2 = {
-      Title = "Objective",
+      Title = "Destination ($5000)",
       Position = { x = -10000, y = 0, z =  0},
-      Icon     = 58,
+      Icon     = 38,
       Display  = 4,
       Size     = 1.2,
       Color    = 1,
@@ -5606,7 +5674,7 @@ StartMessage = "Ensure that the asset and their plane~n~ make it to the destinat
 	
 	{  x = 1318.13, y = 3624.67, z = 33.5,  MissionTitle="Top Gun",
 		Blip2 = { --safehouse blip
-		  Title = "Mission Start",
+		  Title = "Mission Start: Rendevouz with the asset",
 		  Position = { x = 1515.16, y = 3064.27, z = 41.3}, -- x = 2365.07, y = 2958.56, z = 49.06 --{ x = 1944.96, y = 3150.6, z = 46.77}, --x = 1345.43, y = 3152.51, z = 40.41
 		  Icon     = 58,
 		  Display  = 4,
@@ -5617,7 +5685,7 @@ StartMessage = "Ensure that the asset and their plane~n~ make it to the destinat
 		  --Used for AddBlipForRadius with IsDefend Missions
 		},
 		Blip = { --safehouse blip
-		  Title = "Destination",
+		  Title = "Destination ($5000)",
 		  Position = { x = 890.31, y = 3717.53, z = 29.66}, -- x = 2365.07, y = 2958.56, z = 49.06 --{ x = 1944.96, y = 3150.6, z = 46.77}, --x = 1345.43, y = 3152.51, z = 40.41
 		  Icon     = 38,
 		  Display  = 4,
@@ -5791,7 +5859,7 @@ StartMessage = "Ensure that the asset and their boat~n~ make it to the destinati
 	--RandomLocation = true, --for completely random location..
 	
 	
-	SMS_Subject="Adrift",
+	SMS_Subject="Escort Mission",
 	SMS_Message="We need help to ensure that an asset and their boat make it to the destination",
 	SMS_Message2="They will need an escort. Are you up for this?",
 	--SMS_Message3="Anyone up for this?",	
@@ -5844,18 +5912,18 @@ StartMessage = "Ensure that the asset and their boat~n~ make it to the destinati
 
 	
 	Blip = {
-      Title = "Objective",
+      Title = "Destination ($5000)",
       Position = { x = -10000, y = 0, z =  0},
-      Icon     = 58,
+      Icon     = 38,
       Display  = 4,
       Size     = 1.2,
       Color    = 1,
     },
 	
 	Blip2 = {
-      Title = "Objective",
+      Title = "Destination ($5000)",
       Position = { x = -10000, y = 0, z =  0},
-      Icon     = 58,
+      Icon     = 38,
       Display  = 4,
       Size     = 1.2,
       Color    = 1,
@@ -5934,7 +6002,7 @@ StartMessage = "Ensure that the asset and their boat~n~ make it to the destinati
 	
 	{  x = 1318.13, y = 3624.67, z = 33.5,  MissionTitle="I'm On A Boat",
 		Blip2 = { --safehouse blip
-		  Title = "Mission Start",
+		  Title = "Mission Start: Rendevouz with the asset",
 		  Position = { x = 2317.1, y = 4543.08, z = 29.35}, -- x = 2365.07, y = 2958.56, z = 49.06 --{ x = 1944.96, y = 3150.6, z = 46.77}, --x = 1345.43, y = 3152.51, z = 40.41
 		  Icon     = 58,
 		  Display  = 4,
@@ -5945,7 +6013,7 @@ StartMessage = "Ensure that the asset and their boat~n~ make it to the destinati
 		  --Used for AddBlipForRadius with IsDefend Missions
 		},
 		Blip = { --safehouse blip
-		  Title = "Destination",
+		  Title = "Destination ($5000)",
 		  Position = { x = -150.2, y = 4233.38, z = 29.52}, -- x = 2365.07, y = 2958.56, z = 49.06 --{ x = 1944.96, y = 3150.6, z = 46.77}, --x = 1345.43, y = 3152.51, z = 40.41
 		  Icon     = 38,
 		  Display  = 4,
@@ -5958,6 +6026,7 @@ StartMessage = "Ensure that the asset and their boat~n~ make it to the destinati
 		
 	DefendTargetInVehicle = true,
 	DefendTargetVehicleIsBoat=true,
+	--DefendTargetVehicleMoveSpeedRatio = 0.75,
 
 	}, 
 
@@ -6044,7 +6113,7 @@ StartMessage = "Drive the asset and their vehicle~n~ to the destination~n~~r~Hur
 	MissionTriggerStartPoint = { x = 1515.16, y = 3064.27, z = 41.3},
 	
 	
-	SMS_Subject="The Gauntlet v2",
+	SMS_Subject="Transport Mission",
 	SMS_Message="We need help to ensure that an asset and their vehicle make it to the destination",
 	SMS_Message2="They will need a driver and escorts. Are you up for this?",
 	--SMS_Message3="Anyone up for this?",	
@@ -6069,18 +6138,18 @@ StartMessage = "Drive the asset and their vehicle~n~ to the destination~n~~r~Hur
 
 	
 	Blip = {
-      Title = "Objective",
+      Title = "Destination ($5000)",
       Position = { x = -10000, y = 0, z =  0},
-      Icon     = 58,
+      Icon     = 38,
       Display  = 4,
       Size     = 1.2,
       Color    = 1,
     },
 	
 	Blip2 = {
-      Title = "Objective",
+      Title = "Destination ($5000)",
       Position = { x = -10000, y = 0, z =  0},
-      Icon     = 58,
+      Icon     = 38,
       Display  = 4,
       Size     = 1.2,
       Color    = 1,
@@ -6159,7 +6228,7 @@ StartMessage = "Drive the asset and their vehicle~n~ to the destination~n~~r~Hur
 	
 	{  x = 1318.13, y = 3624.67, z = 33.5,  MissionTitle="The Gauntlet v2",
 		Blip2 = { --safehouse blip
-		  Title = "Mission Start",
+		  Title = "Mission Start: Rendevouz with the asset",
 		  Position = { x = 1515.16, y = 3064.27, z = 41.3}, -- x = 2365.07, y = 2958.56, z = 49.06 --{ x = 1944.96, y = 3150.6, z = 46.77}, --x = 1345.43, y = 3152.51, z = 40.41
 		  Icon     = 58,
 		  Display  = 4,
@@ -6170,7 +6239,7 @@ StartMessage = "Drive the asset and their vehicle~n~ to the destination~n~~r~Hur
 		  --Used for AddBlipForRadius with IsDefend Missions
 		},
 		Blip = { --safehouse blip
-		  Title = "Destination",
+		  Title = "Destination ($5000)",
 		  Position = { x = 890.31, y = 3717.53, z = 29.66}, -- x = 2365.07, y = 2958.56, z = 49.06 --{ x = 1944.96, y = 3150.6, z = 46.77}, --x = 1345.43, y = 3152.51, z = 40.41
 		  Icon     = 38,
 		  Display  = 4,
@@ -6292,6 +6361,7 @@ StartMessage = "Fly the asset and their plane~n~ to the destination~n~~r~Hurry!"
 	IsDefendTargetRescue = false,
 	IsDefendTargetChase = true,
 	IsVehicleDefendTargetChase = true,
+	IsDefendTargetVehiclePassengerRadius=500.0,
 	IsDefendTargetSetBlockingOfNonTemporaryEvents=true,
 	--IsDefendTargetEnemySetBlockingOfNonTemporaryEvents=true,
 	IsDefendTargetOnlyPlayersDamagePeds=false,
@@ -6355,7 +6425,7 @@ StartMessage = "Fly the asset and their plane~n~ to the destination~n~~r~Hurry!"
 	--what x and y coordinate range should these mission spawn in?
 	--RandomLocation = true, --for completely random location..
 	
-	SMS_Subject="Top Gun v2",
+	SMS_Subject="Transport Mission",
 	SMS_Message="We need help to ensure that an asset and their aircraft make it to the destination",
 	SMS_Message2="They will need a pilot and escorts. Are you up for this?",
 	--SMS_Message3="Anyone up for this?",	
@@ -6373,18 +6443,18 @@ StartMessage = "Fly the asset and their plane~n~ to the destination~n~~r~Hurry!"
 
 	
 	Blip = {
-      Title = "Objective",
+      Title = "Destination ($5000)",
       Position = { x = -10000, y = 0, z =  0},
-      Icon     = 58,
+      Icon     = 38,
       Display  = 4,
       Size     = 1.2,
       Color    = 1,
     },
 	
 	Blip2 = {
-      Title = "Objective",
+      Title = "Destination ($5000)",
       Position = { x = -10000, y = 0, z =  0},
-      Icon     = 58,
+      Icon     = 38,
       Display  = 4,
       Size     = 1.2,
       Color    = 1,
@@ -6463,7 +6533,7 @@ StartMessage = "Fly the asset and their plane~n~ to the destination~n~~r~Hurry!"
 	
 	{  x = 1318.13, y = 3624.67, z = 33.5,  MissionTitle="Top Gun v2",
 		Blip2 = { --safehouse blip
-		  Title = "Mission Start",
+		  Title = "Mission Start: Rendevouz with the asset",
 		  Position = { x = 1515.16, y = 3064.27, z = 41.3}, -- x = 2365.07, y = 2958.56, z = 49.06 --{ x = 1944.96, y = 3150.6, z = 46.77}, --x = 1345.43, y = 3152.51, z = 40.41
 		  Icon     = 58,
 		  Display  = 4,
@@ -6474,7 +6544,7 @@ StartMessage = "Fly the asset and their plane~n~ to the destination~n~~r~Hurry!"
 		  --Used for AddBlipForRadius with IsDefend Missions
 		},
 		Blip = { --safehouse blip
-		  Title = "Destination",
+		  Title = "Destination ($5000)",
 		  Position = { x = 890.31, y = 3717.53, z = 29.66}, -- x = 2365.07, y = 2958.56, z = 49.06 --{ x = 1944.96, y = 3150.6, z = 46.77}, --x = 1345.43, y = 3152.51, z = 40.41
 		  Icon     = 38,
 		  Display  = 4,
@@ -6647,7 +6717,7 @@ StartMessage = "Drive the asset and their boat~n~ to the destination~n~~r~Hurry!
 	--what x and y coordinate range should these mission spawn in?
 	--RandomLocation = true, --for completely random location..
 	
-	SMS_Subject="Adrift v2",
+	SMS_Subject="Transport Mission",
 	SMS_Message="We need help to ensure that an asset and their boat make it to the destination",
 	SMS_Message2="They will need a driver and escorts. Are you up for this?",
 	--SMS_Message3="Anyone up for this?",	
@@ -6701,18 +6771,18 @@ StartMessage = "Drive the asset and their boat~n~ to the destination~n~~r~Hurry!
 
 	
 	Blip = {
-      Title = "Objective",
+      Title = "Destination ($5000)",
       Position = { x = -10000, y = 0, z =  0},
-      Icon     = 58,
+      Icon     = 38,
       Display  = 4,
       Size     = 1.2,
       Color    = 1,
     },
 	
 	Blip2 = {
-      Title = "Objective",
+      Title = "Destination ($5000)",
       Position = { x = -10000, y = 0, z =  0},
-      Icon     = 58,
+      Icon     = 38,
       Display  = 4,
       Size     = 1.2,
       Color    = 1,
@@ -6791,7 +6861,7 @@ StartMessage = "Drive the asset and their boat~n~ to the destination~n~~r~Hurry!
 	
 	{  x = 1318.13, y = 3624.67, z = 33.5,  MissionTitle="I'm On A Boat v2",
 		Blip2 = { --safehouse blip
-		  Title = "Mission Start",
+		  Title = "Mission Start: Rendevouz with the asset",
 		  Position = { x = 2317.1, y = 4543.08, z = 29.35}, -- x = 2365.07, y = 2958.56, z = 49.06 --{ x = 1944.96, y = 3150.6, z = 46.77}, --x = 1345.43, y = 3152.51, z = 40.41
 		  Icon     = 58,
 		  Display  = 4,
@@ -6802,7 +6872,7 @@ StartMessage = "Drive the asset and their boat~n~ to the destination~n~~r~Hurry!
 		  --Used for AddBlipForRadius with IsDefend Missions
 		},
 		Blip = { --safehouse blip
-		  Title = "Destination",
+		  Title = "Destination ($5000)",
 		  Position = { x = -150.2, y = 4233.38, z = 29.52}, -- x = 2365.07, y = 2958.56, z = 49.06 --{ x = 1944.96, y = 3150.6, z = 46.77}, --x = 1345.43, y = 3152.51, z = 40.41
 		  Icon     = 38,
 		  Display  = 4,
@@ -6856,7 +6926,7 @@ RandomMissionDestinations = {
 
 	},
 	
-	SMS_Subject="Killing Floor",
+	SMS_Subject="Humane Labs",
 	SMS_Message="Mercenaries have infiltrated Humane Labs to steal bio nanotechnology to sell on the black market",
 	SMS_Message2="We need someone to stop them. Can you help us?",
 	--SMS_Message3="Anyone up for this?",	
@@ -7681,7 +7751,7 @@ Mission32 = {
 	TeleportToSafeHouseOnMissionStart = true,
 	SafeHouseGiveImmediately=true,
 	
-	SMS_Subject="Heat",
+	SMS_Subject="Secure the data",
 	SMS_Message="Take the secret files from the bank vault to the submarine to be secured, so they can be publicized",
 	--SMS_Message2="We need someone to stop them. Can you help us?",
 	--SMS_Message3="Anyone up for this?",	
@@ -8183,10 +8253,10 @@ Mission32 = {
 
   Mission33 = {
     
-	StartMessage = "Shut down an interdimensional portal~n~opened by aliens before it is too late!",
+	StartMessage = "Shut down an interdimensional portal~n~opened by a powerful syndicate before it is too late!",
 	FinishMessage = "~q~You saved San Andreas!",
 	MissionTitle = "Ghostbusters",
-	MissionMessage = "Shut down an interdimensional portal~n~opened by aliens before it is too late!",	
+	MissionMessage = "Shut down an interdimensional portal~n~opened by a powerful syndicate before it is too late!",	
 	Type = "Objective",	
 	IndoorsMission = true,
 	FinishedObjectiveReward = 10000, --cash
@@ -8198,10 +8268,10 @@ Mission32 = {
 	SafeHouseAircraftCount = 2,
 	MissionTriggerRadius=1000.0,
 	
-	SMS_Subject="Ghostbusters",
-	SMS_Message="Looks like some rich powerful assholes have been playing with alien tech",
-	SMS_Message2="Head downtown and shut down the interdimensional portal opened by them before it is too late!",
-	--SMS_Message3="Anyone up for this?",	
+	SMS_Subject="Close down the portal",
+	SMS_Message="Looks like a rich powerful syndicate has been toying around with some alien tech",
+	SMS_Message2="We need someone to head downtown and shut down the interdimensional portal opened by them",
+	SMS_Message3="Before it is too late!",	
 		
 	--SMS_ContactPics={"CHAR_AGENT14",
 	--},
@@ -8226,7 +8296,7 @@ Mission32 = {
 	},
 	
     Blips = {	{
-		Title = "Mission: Cabal Headquarters",
+		Title = "Mission: Interdimensional Portal",
 		Position = {x = -81.74, y = -837.28, z = 40.56},
 		Icon     = 58,
 		Display  = 4,
@@ -8556,7 +8626,7 @@ StartMessage = "Defend the asset and their vehicle~n~eliminate all hostiles~n~~r
 	SafeHouseCrackDownModeHealthAmount=1000,
 	
 	
-	SMS_Subject="The Gauntlet v3",
+	SMS_Subject="Protect the asset",
 	SMS_Message="We need help to ensure that an asset and their vehicle survive an attack",
 	SMS_Message2="They will need an escort. Are you up for this?",
 	--SMS_Message3="Anyone up for this?",	
@@ -8626,7 +8696,7 @@ SpawnSafeHouseComponents = {"COMPONENT_AT_PI_SUPP WEAPON_COMBATPISTOL","COMPONEN
 
 	
 	Blip = {
-      Title = "Objective",
+      Title = "Mission Start: Rendevouz with the asset",
       Position = { x = -10000, y = 0, z =  0},
       Icon     = 58,
       Display  = 4,
@@ -8635,7 +8705,7 @@ SpawnSafeHouseComponents = {"COMPONENT_AT_PI_SUPP WEAPON_COMBATPISTOL","COMPONEN
     },
 	
 	Blip2 = {
-      Title = "Objective",
+      Title = "Mission Start: Rendevouz with the asset",
       Position = { x = -10000, y = 0, z =  0},
       Icon     = 58,
       Display  = 4,
@@ -8714,9 +8784,9 @@ SpawnSafeHouseComponents = {"COMPONENT_AT_PI_SUPP WEAPON_COMBATPISTOL","COMPONEN
 	
 	RandomMissionPositions = { 
 	
-	{  x = 1318.13, y = 3624.67, z = 33.5,  MissionTitle="The Gauntlet v3",
+	{  x = 1515.16, y = 3064.27, z = 41.3, SpawnAt={x = 1318.13, y = 3624.67, z = 33.5} ,  MissionTitle="The Gauntlet v3",
 		Blip2 = { --safehouse blip
-		  Title = "Mission Start",
+		  Title = "Mission Start: Rendevouz with the asset",
 		  Position = { x = 1515.16, y = 3064.27, z = 41.3}, -- x = 2365.07, y = 2958.56, z = 49.06 --{ x = 1944.96, y = 3150.6, z = 46.77}, --x = 1345.43, y = 3152.51, z = 40.41
 		  Icon     = 58,
 		  Display  = 4,
@@ -9752,7 +9822,7 @@ SpawnSafeHouseComponents = {"COMPONENT_AT_PI_SUPP WEAPON_COMBATPISTOL","COMPONEN
 	SafeHouseSniperExplosiveRoundsGiven=0,
 	MissionTriggerRadius = 20.0,
 	
-	SMS_Subject="Skynet",
+	SMS_Subject="NOOSE Compromised",
 	SMS_Message="Mercs have taken over an AI at NOOSE Headquarters and weaponized it.",
 	SMS_Message2="Shut down the AI the mercenaries have enabled before it takes over the internet. Can you help?",
 	--SMS_Message3="",	
@@ -9963,8 +10033,8 @@ Events = {
 	
 	SMS_Subject="OmniCorp",
 	SMS_Message="Our intel have revealed the clients of renegade mercenaries terrorizing San Andreas.",
-	SMS_Message2="We are calling them The Cabal. We need someone to take out the mercs infrastructure and clients",
-	SMS_Message3="This will help finish off thre threat. Can you help?",	
+	SMS_Message2="We are calling them The Syndicate. We need someone to take out the mercs infrastructure and clients",
+	SMS_Message3="This will help finish off the threat. Can you help?",	
 		
 	--SMS_ContactPics={"CHAR_AGENT14",
 	--},
@@ -9986,7 +10056,7 @@ Events = {
 		  Color    = 1,
 		},
 		{
-		Title = "Mission: Cabal Headquarters",
+		Title = "Mission: Syndicate Headquarters",
 		Position = {x = -81.74, y = -837.28, z = 40.56},
 		Icon     = 58,
 		Display  = 4,
@@ -10427,7 +10497,7 @@ Mission40 = {
 	MissionTriggerRadius=20.0,
 	HostageRescue = true,
 	
-	SMS_Subject="They Live",
+	SMS_Subject="D.U.M.B.",
 	SMS_Message="Intel has revealed a deep secret underground facility that needs to be investigated",
 	SMS_Message2="There are rumors of secret experiments. Would you like to take the mission?",
 	--SMS_Message3="This will help finish off thre threat. Can you help?",	
@@ -10670,7 +10740,7 @@ Mission40 = {
 	MissionTriggerRadius=20.0,
 	HostageRescue = true,
 	
-	SMS_Subject="Ong's Hat",
+	SMS_Subject="Underground Base",
 	SMS_Message="Intel has revealed a secret facility that needs to be investigated",
 	SMS_Message2="There are rumors of secret experiments. Would you like to take the mission?",
 	--SMS_Message3="This will help finish off thre threat. Can you help?",	
@@ -10687,7 +10757,7 @@ Mission40 = {
 	SMS_PassedMessage="Los Santos is safe and sound from the attack",	
 	
     Blips = {{
-		  Title = "Secret Underground Facility",
+		  Title = "Mission: Secret Underground Facility",
 		  Position =  {x = 1285.94, y = 2847.34, z = 49.36},
 		  Icon     = 58,
 		  Display  = 4,
@@ -10959,6 +11029,8 @@ Mission42 = {
 	MissionTriggerRadius=300.0,
 
 	
+	
+	SMS_Subject="Bank Vault",
 	SMS_Message="We need someone to go to the Pacific Standard Bank and capture secret intel from the vault",
 	SMS_Message2="We hope to expose this information to the public of San Andreas. Will you help us?",
 	--SMS_Message3="This will help finish off thre threat. Can you help?",	
@@ -10981,7 +11053,7 @@ Mission42 = {
 
     Blips = {
 		{
-		  Title = "Pacific Standard Public Deposit Bank",
+		  Title = "Mission: Pacific Standard Public Deposit Bank",
 		  Position =  {  x = 249.67, y = 219.57, z = 101.68 },
 		  Icon     = 58,
 		  Display  = 4,
