@@ -30,11 +30,18 @@ local MissionStartTime = 0
 local MissionEndTime = 0
 local MissionNoTimeout = false
 
+
 MissionIsDefendTargetGoalDestIndex = nil
 GlobalGotoGoalX = nil
 GlobalGotoGoalY = nil
 GlobalGotoGoalZ = nil
 GlobalTargetPed=nil
+PlayingAnimL=false
+PlayingAnimD=false
+PedLeaderModel=nil
+PedDoctorModel=nil	
+GlobalBackup=nil
+GlobalBackupIndex=0
 
 local MissionDoneSMS=false
 
@@ -95,6 +102,12 @@ local RescueMarkers = {}
 SetAudioFlag("LoadMPData", true)
 
 Blips = {}
+
+local MissionDropBlip
+local MissionDropMarker
+local MissionDropHeading
+local MissionDropBlipCoords={x=-50000,y=-50000,z=-50000}
+local MissionDropDid=false
 
 DecorRegister("mrppedid",1)
 DecorRegister("mrpvpedid",1)
@@ -431,22 +444,75 @@ RegisterCommand("stop", function(source, args, rawCommand)
 end, false)
 
 
+function getIsDefendTargetSeatId(input,vehmodel)
+	
+	local IsDefendTargetSeatIds = getMissionConfigProperty(input, "IsDefendTargetSeatIds")
+	if not IsDefendTargetSeatIds then 
+		return
+	end
+	for i, v in pairs(IsDefendTargetSeatIds) do
+		
+        if vehmodel == i then
+			--print("hey")
+			--print(v)
+			return v
+			
+        end
+    end
+	
+	return
+
+end 
+
+--when joining a vehicle in IsDefendTarget mission vehicle, 
+--or when a player backup ped tries to join
+--where should the player or backup go go to?
+--overrides  the turrets first logic... for vehicles like apcs.
+function getPreferrableSeatId(input,vehmodel)
+
+	local PreferrableSeatIds = getMissionConfigProperty(input, "PreferrableSeatIds")
+	
+	if not PreferrableSeatIds then 
+		return
+	end
+	--print("vehmodel:"..vehmodel)
+	for i, v in pairs(PreferrableSeatIds) do
+		--print("i:"..GetHashKey(i))
+        if vehmodel == GetHashKey(i) then
+			--print("hey")
+			--print(v)
+			return v
+			
+        end
+    end
+	
+	return
+
+end 
+
 RegisterNetEvent("mt:dotargetpassenger")
-AddEventHandler('mt:dotargetpassenger', function(ped,pvehicle)
-	--print("hey")
+AddEventHandler('mt:dotargetpassenger', function(ped,pvehicle,tseatid)
+	--print("hey:"..tostring(tseatid))
+	local seatid  = 0
+	if tseatid then 
+		seatid = tseatid
+		
+	end
+	--print("heyddd:"..tostring(seatid))
 	while Active ==1 and MissionName ~= "N/A" do
 	
 		Citizen.Wait(0)
 		--local ped = GetPlayerPed( -1 )
 		local vehicle = GetVehiclePedIsIn( ped, false )
-		local passenger = GetPedInVehicleSeat(vehicle, 0)
+		local passenger = GetPedInVehicleSeat(vehicle, seatid)
 
 		  if ( DoesEntityExist( ped ) and not IsEntityDead( ped ) ) then 
 			--if ( IsPedSittingInAnyVehicle( ped ) ) then
 				
 				--if IsVehicleSeatFree(vehicle, -1) then
 					if ped == passenger then
-						SetPedIntoVehicle(ped, vehicle, 0)
+						--print("hey")
+						SetPedIntoVehicle(ped, vehicle, seatid)
 					end
 				--end
 			--end
@@ -1231,7 +1297,13 @@ AddEventHandler("mt:missiontext", function(input, timet)
 		--do it again, to bypass mission chat messages on mission launch
 		HelpMessage("Check your map for mission data. Press ~INPUT_SNIPER_ZOOM_OUT_SECONDARY~ to view mission info.",true,5000)
 		
-		if DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then 
+		
+		
+		--if DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then
+			Wait(5000)
+			HelpMessage("Press ~INPUT_LOOK_BEHIND~ and ~INPUT_PICKUP~ for a quick tutorial on controls and mission help",false,5000)
+			
+			--[[			
 			if blDoNightVisionToggleStates > 0 then
 				Wait(5000)
 				HelpMessage("Press ~INPUT_DUCK~ and ~INPUT_LOOK_BEHIND~ to toggle night vision modes",false,5000)
@@ -1246,6 +1318,13 @@ AddEventHandler("mt:missiontext", function(input, timet)
 				
 			end
 			
+			if getMissionConfigProperty(MissionName, "UseMissionDrop") then 
+				Wait(5000)
+				HelpMessage("Press~INPUT_DUCK~ and ~INPUT_COVER~ to create a Mission Reinforcement Drop",false,5000)
+				Wait(5000)
+				HelpMessage("Mission Reinforcement Drops allow for fast travel after you respawn",false,5000)				
+			end			
+			
 			if(getMissionConfigProperty(input, "UseSafeHouseBanditoDrop")) then 
 				Wait(5000)
 				HelpMessage("Deploy an explosive drone car with ~INPUT_WEAPON_WHEEL_NEXT~ and ~INPUT_COVER~.",true,5000)
@@ -1255,7 +1334,8 @@ AddEventHandler("mt:missiontext", function(input, timet)
 				HelpMessage("The safe house needs to be open to deploy, and it will count towards a safe house vehicle",false,5000)		
 				
 			end	
-		end
+			]]--
+		--end
 		
 		--SetTextComponentFormat("STRING")
 		--AddTextComponentString("Hit ~INPUT_CONTEXT~ to do shit!")
@@ -1265,6 +1345,106 @@ AddEventHandler("mt:missiontext", function(input, timet)
 	end
 	
 	
+end)
+
+RegisterNetEvent("mt:doMissionHelpText")
+AddEventHandler("mt:doMissionHelpText", function(input)
+
+
+		--do it again, to bypass mission chat messages on mission launch
+		HelpMessage("This is the help guide for this mission",false,5000)
+		Wait(5000)
+		
+		if((getMissionConfigProperty(input, "EnableOptIn")) or 
+			(getMissionConfigProperty(input, "EnableSafeHouseOptIn")))
+			and 
+			DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 1
+			then 
+			HelpMessage("You are not in the mission. Press ~INPUT_SNIPER_ZOOM_OUT_SECONDARY~ on how to join",false,5000)
+			Wait(5000)
+		end		
+		
+		HelpMessage("Check your map for mission data. Press ~INPUT_SNIPER_ZOOM_OUT_SECONDARY~ to view mission info.",false,5000)
+		
+		
+		--if DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then 
+		
+			if(getMissionConfigProperty(input, "UseSafeHouse")) then 
+				Wait(5000)
+				HelpMessage("Use the safe house for equipment and upgrades for the mission, whenever it is open. Cost: $"..getMissionConfigProperty(input, "SafeHouseCost"),false,5000)
+				Wait(5000)
+				HelpMessage("Use the boat and vehicle safe houses for mission vehicles. Cost per vehicle: $"..getMissionConfigProperty(input, "SafeHouseCostVehicle"),false,5000)
+				Wait(5000)
+				HelpMessage("When a mission is activated, any mission vehicle you drive, will be claimed by you",false,5000)	
+				Wait(5000)
+				HelpMessage("Only you will be able to drive it, but other players can be passengers. You can claim "..getMissionConfigProperty(input, "SafeHouseVehiclesMaxClaim").." vehicles",false,5000)						
+			end
+		
+		
+			if blDoNightVisionToggleStates > 0 then
+				Wait(5000)
+				HelpMessage("Press ~INPUT_DUCK~ and ~INPUT_LOOK_BEHIND~ to toggle night vision modes",false,5000)
+
+			end	
+			
+			if(getMissionConfigProperty(input, "UseSafeHouseCrateDrop")) then 
+				Wait(5000)
+				HelpMessage("Call in an air supply drop using ~INPUT_DUCK~ and ~INPUT_SELECT_WEAPON~. Cost: $"..getMissionConfigProperty(input, "SafeHouseCostCrate"),false,5000)
+				Wait(5000)
+				HelpMessage("It's the same equipment and upgrades. The safe house needs to be open to call in an air supply drop",false,5000)
+				
+			end
+			
+			if getMissionConfigProperty(MissionName, "UseMissionDrop") then 
+				Wait(5000)
+				HelpMessage("Press~INPUT_DUCK~ and ~INPUT_COVER~ to toggle a Mission Reinforcement Drop (MRD) at your location",false,5000)
+				Wait(5000)
+				HelpMessage("MRDs allow for fast travel after you respawn. Cost: $"..getMissionConfigProperty(input, "UseMissionDropFee"),false,5000)	
+				Wait(5000)
+				HelpMessage("If an MRD is set, after you respawn, press ~INPUT_LOOK_BEHIND~ and ~INPUT_COVER~ to move there",false,5000)			
+			end			
+			
+			if(getMissionConfigProperty(input, "UseSafeHouseBanditoDrop")) then 
+				Wait(5000)
+				HelpMessage("Deploy an explosive drone car with ~INPUT_WEAPON_WHEEL_NEXT~ and ~INPUT_COVER~.",false,5000)
+				Wait(5000)
+				HelpMessage("Press ~INPUT_PICKUP~ to explode the drone car once activated. Cost to deploy: $"..getMissionConfigProperty(input, "SafeHouseCostCrate"),false,5000)
+				Wait(5000)
+				HelpMessage("The safe house needs to be open to deploy, and it will count towards a safe house vehicle",false,5000)		
+				
+			end
+			
+			if(getMissionConfigProperty(input, "MissionDoBackup")) then 
+				Wait(5000)
+				HelpMessage("Call for safe house mission backup with ~INPUT_WEAPON_WHEEL_PREV~ and ~INPUT_LOOK_BEHIND~",false,5000)
+				Wait(5000)
+				HelpMessage("An ally from the safe house will quickly arrive to help. Cost $"..getMissionConfigProperty(input, "BackupPedFee"),false,5000)
+				Wait(5000)
+				HelpMessage("You can have one ally at a time. They will help with combat but they will not earn you money",false,5000)	
+				
+				Wait(5000)				
+				HelpMessage("You can dismiss an ally by pressing ~INPUT_MULTIPLAYER_INFO~ and ~INPUT_LOOK_BEHIND~",false,5000)				
+				
+				if(getMissionConfigProperty(input, "BackupPedHeavyMunitionsAllow")) then 
+				Wait(5000)				
+				HelpMessage("Select allies with different weapons by pressing ~INPUT_WEAPON_WHEEL_NEXT~ and ~INPUT_LOOK_BEHIND~",false,5000)			
+				
+				end
+			
+				
+			end			
+			
+			Wait(5000)
+			HelpMessage("Some Escort/Transport/Rescue/Defend missions can allow you to enter the target vehicle, if in range",false,0)
+			Wait(5000)
+			HelpMessage("Press ~INPUT_WEAPON_WHEEL_PREV~ and ~INPUT_PICKUP~ to enter the target's vehicle, if a seat is free",false,0)
+			
+			Wait(5000)
+			HelpMessage("To see this tutorial again, press ~INPUT_LOOK_BEHIND~ and ~INPUT_PICKUP~",false,5000)		
+			
+		--end
+
+
 end)
 
 RegisterNetEvent("mt:doisDefendVehicleHelp")
@@ -1290,7 +1470,7 @@ AddEventHandler("mt:doisDefendVehicleHelp", function()
 					then
 
 						--print("hey")
-						HelpMessage("Press ~INPUT_WEAPON_WHEEL_PREV~ and ~INPUT_PICKUP~ to enter the target's vehicle",false,0)
+						HelpMessage("Press ~INPUT_WEAPON_WHEEL_PREV~ and ~INPUT_PICKUP~ to enter the target's vehicle",true,0)
 					
 					
 					
@@ -1353,6 +1533,8 @@ AddEventHandler('missionBlips', function(input,rMissionLocationIndex,rMissionTyp
 	MissionName = input
 	--allow the mission to be active
 	GlobalKillTargetPed  = false
+	
+	
 	
 	if getMissionConfigProperty(input, "RemoveWeaponsAndUpgradesAtMissionStart") then 
 		Notify("~r~Any previous weapons and upgrades have been removed for this mission")
@@ -2240,6 +2422,11 @@ AddEventHandler('DONE', function(input,isstop,isfail,reasontext,blGoalReached)
 		GlobalGotoGoalY = nil
 		GlobalGotoGoalZ = nil
 		GlobalTargetPed=nil
+		PlayingAnimL=false
+		PlayingAnimD=false
+		PedLeaderModel=nil
+		PedDoctorModel=nil
+		GlobalBackup=nil		
 		
 	if(not isstop) then --allow bonuses for isfail as well
 		if DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then 
@@ -2711,6 +2898,14 @@ AddEventHandler('DONE', function(input,isstop,isfail,reasontext,blGoalReached)
 	blDoNightVisionToggleState = 0
 	blDoNightVisionToggleStates = 0
 	blDoNightVision = false
+	
+	--reset reinforcement drop
+	if(DoesBlipExist(MissionDropBlip)) then 
+		RemoveBlip(MissionDropBlip)
+	end
+	MissionDropDid=false
+	MissionDropBlip=nil
+	MissionDropBlipCoords={x=-50000,y=-50000,z=-50000}
 	
 	if getMissionConfigProperty(input, "RemoveWeaponsAndUpgradesAtMissionEnd") then 
 		--print("made  it"..DecorGetInt(GetPlayerPed(-1),"mrpoptout"))
@@ -4584,6 +4779,13 @@ if not doBoatMission then
 				SetEntityOnlyDamagedByPlayer(Ped, true) 
 			end
 			
+			if getMissionConfigProperty(input,"MissionDoBackup") then
+				SetEntityOnlyDamagedByPlayer(Ped, false) 
+				SetEntityCanBeDamagedByRelationshipGroup(Ped,false,"HATES_PLAYER")
+				SetEntityCanBeDamagedByRelationshipGroup(Ped,true,"PLAYER")
+				SetEntityCanBeDamagedByRelationshipGroup(Ped,true,"ISDEFENDTARGET")
+			end			
+			
 			SetPedAccuracy(Ped,math.random(getMissionConfigProperty(input, "SetPedMinAccuracy"),getMissionConfigProperty(input, "SetPedMaxAccuracy")))
 			--Add DoesEntityExist check here? 
 			--[[
@@ -4663,7 +4865,11 @@ if not doBoatMission then
 					SetRelationshipBetweenGroups(1, GetHashKey("HOSTAGES"), GetHashKey("PLAYER"))
 					
 					if getMissionConfigProperty(input, "DelicateHostages") then 
-						SetEntityOnlyDamagedByPlayer(Ped, false) 
+						SetEntityOnlyDamagedByPlayer(Ped, false)
+
+					else			
+						SetEntityOnlyDamagedByPlayer(Ped, true)							
+					
 					end
 				end
 				
@@ -5215,6 +5421,13 @@ end
 				if not getMissionConfigProperty(input,"IsDefendTarget") or (getMissionConfigProperty(input,"IsDefendTarget") and getMissionConfigProperty(input,"IsDefendTargetOnlyPlayersDamagePeds") ) then				
 					SetEntityOnlyDamagedByPlayer(PedVehicle, true)
 				end
+				
+				if getMissionConfigProperty(input,"MissionDoBackup") then
+					SetEntityOnlyDamagedByPlayer(PedVehicle, false)
+					SetEntityCanBeDamagedByRelationshipGroup(PedVehicle,false,"HATES_PLAYER")
+					SetEntityCanBeDamagedByRelationshipGroup(PedVehicle,true,"PLAYER")
+					SetEntityCanBeDamagedByRelationshipGroup(PedVehicle,true,"ISDEFENDTARGET")
+				end				
 							
 				--if DoesEntityExist(PedVehicle) then 
 					--print("spawned:"..veh)
@@ -5325,7 +5538,16 @@ end
 					
 					if not getMissionConfigProperty(input,"IsDefendTarget") or (getMissionConfigProperty(input,"IsDefendTarget") and getMissionConfigProperty(input,"IsDefendTargetOnlyPlayersDamagePeds") ) then			
 						SetEntityOnlyDamagedByPlayer(Ped, true)
-					end 
+					end
+					
+					if getMissionConfigProperty(input,"MissionDoBackup") then
+						SetEntityOnlyDamagedByPlayer(Ped, false)
+						SetEntityCanBeDamagedByRelationshipGroup(Ped,false,"HATES_PLAYER")
+						SetEntityCanBeDamagedByRelationshipGroup(Ped,true,"PLAYER")
+						SetEntityCanBeDamagedByRelationshipGroup(Ped,true,"ISDEFENDTARGET")
+					end											
+
+					
 					if(randomPedModelHash  == "s_m_m_movalien_01") then
 						SetPedDefaultComponentVariation(Ped) --GHK for s_m_m_movalien_01
 					end
@@ -5816,8 +6038,12 @@ end
 						end
 
 						if getMissionConfigProperty(input, "DelicateHostages") then 
-							SetEntityOnlyDamagedByPlayer(Ped, false) 
-						end						
+							SetEntityOnlyDamagedByPlayer(Ped, false)
+
+						else			
+							SetEntityOnlyDamagedByPlayer(Ped, true)							
+						
+						end					
 						--BeginTextCommandSetBlipName("STRING")
 						--AddTextComponentString("Friend ($-"..getHostageKillPenalty(input)..")")
 						--EndTextCommandSetBlipName(pedb)				        
@@ -6035,9 +6261,17 @@ AddEventHandler('SpawnPed', function(input)
 		--Stop AI from blowing themselves up!
 		--SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Peds[i].id, false, GetHashKey("HATES_PLAYER"))
 		--SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Peds[i].id, false, GetHashKey("TRUENEUTRAL"))	
-		if not getMissionConfigProperty(input,"IsDefendTarget") or (getMissionConfigProperty(input,"IsDefendTarget") and getMissionConfigProperty(input,"IsDefendTargetOnlyPlayersDamagePeds") ) then	
+		if  not getMissionConfigProperty(input,"IsDefendTarget") or (getMissionConfigProperty(input,"IsDefendTarget") and getMissionConfigProperty(input,"IsDefendTargetOnlyPlayersDamagePeds") ) then	
 			SetEntityOnlyDamagedByPlayer(Config.Missions[input].Peds[i].id, true)
 		end 
+		
+		if getMissionConfigProperty(input,"MissionDoBackup") then
+			SetEntityOnlyDamagedByPlayer(Config.Missions[input].Peds[i].id, false)
+			SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Peds[i].id,false,"HATES_PLAYER")
+			SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Peds[i].id,true,"PLAYER")
+			SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Peds[i].id,true,"ISDEFENDTARGET")
+		end		
+		
 		
 		if(Config.Missions[input].Peds[i].modelHash == "s_m_m_movalien_01") then
 			SetPedDefaultComponentVariation(Config.Missions[input].Peds[i].id) --GHK for s_m_m_movalien_01
@@ -6108,9 +6342,14 @@ AddEventHandler('SpawnPed', function(input)
 				SetPedRelationshipGroupHash(Config.Missions[input].Peds[i].id, GetHashKey("HOSTAGES"))
 				SetRelationshipBetweenGroups(1, GetHashKey("HOSTAGES"), GetHashKey("HATES_PLAYER"))
 				SetRelationshipBetweenGroups(1, GetHashKey("HOSTAGES"), GetHashKey("PLAYER"))
+	
+
 				if getMissionConfigProperty(input, "DelicateHostages") then 
-					SetEntityOnlyDamagedByPlayer(Config.Missions[input].Peds[i].id, false) 
-				end				
+					SetEntityOnlyDamagedByPlayer(Config.Missions[input].Peds[i].id, false)
+				else			
+					SetEntityOnlyDamagedByPlayer(Config.Missions[input].Peds[i].id, true)								
+				end
+				
 			end
 			
 		else  
@@ -6393,6 +6632,14 @@ AddEventHandler('SpawnPed', function(input)
 		if not getMissionConfigProperty(input,"IsDefendTarget") or (getMissionConfigProperty(input,"IsDefendTarget") and getMissionConfigProperty(input,"IsDefendTargetOnlyPlayersDamagePeds") ) then			
 			SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id, true)
 		end
+
+		if getMissionConfigProperty(input,"MissionDoBackup") then
+			SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id, false)
+			SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id,false,"HATES_PLAYER")
+			SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id,true,"PLAYER")
+			SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id,true,"ISDEFENDTARGET")
+		end		
+		
 		local firingpatterns = {driverfiringpattern = false,turretfiringpattern = false}
 		if(not Config.Missions[input].Vehicles[i].nomods) then 
 			firingpatterns = doVehicleMods(veh,Config.Missions[input].Vehicles[i].id,input) 
@@ -6423,6 +6670,15 @@ AddEventHandler('SpawnPed', function(input)
 			if not getMissionConfigProperty(input,"IsDefendTarget") or (getMissionConfigProperty(input,"IsDefendTarget") and getMissionConfigProperty(input,"IsDefendTargetOnlyPlayersDamagePeds") ) then				
 				SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id2, true)
 			end	
+			
+			if getMissionConfigProperty(input,"MissionDoBackup") then
+				SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id2, false)
+				SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id2,false,"HATES_PLAYER")
+				SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id2,true,"PLAYER")
+				SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id2,true,"ISDEFENDTARGET")
+			end			
+			
+			
 			SetPedAccuracy(Config.Missions[input].Vehicles[i].id2,math.random(getMissionConfigProperty(input, "SetPedMinAccuracy"),getMissionConfigProperty(input, "SetPedMaxAccuracy")))
 			
 			if(Config.Missions[input].Vehicles[i].modelHash == "s_m_m_movalien_01") then
@@ -6467,9 +6723,16 @@ AddEventHandler('SpawnPed', function(input)
 					SetRelationshipBetweenGroups(1, GetHashKey("HOSTAGES"), GetHashKey("HATES_PLAYER"))
 					SetRelationshipBetweenGroups(1, GetHashKey("HOSTAGES"), GetHashKey("PLAYER"))	
 					SetRelationshipBetweenGroups(5, GetHashKey("HATES_PLAYER"), GetHashKey("ISDEFENDTARGET"))	
+
+
 					if getMissionConfigProperty(input, "DelicateHostages") then 
-						SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id2, false) 
-					end							
+						SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id2, false)
+
+					else			
+						SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id2, true)							
+					
+					end	
+					
 					--SetPedRelationshipGroupHash(Config.Missions[input].Vehicles[i].id2, GetHashKey("NO_RELATIONSHIP"))
 				end	
 				SetPedCombatAttributes(Config.Missions[input].Vehicles[i].id2, 2, true)
@@ -7074,6 +7337,12 @@ AddEventHandler('SpawnPed', function(input)
 			DecorSetInt(Config.Missions[input].Vehicles[i].id,"mrpvehsafehouse",i)
 			--also make it not invulnerable to NPCs
 			SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id, false)
+			if getMissionConfigProperty(input,"MissionDoBackup") then
+				SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id,true,"HATES_PLAYER")
+				SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id,true,"PLAYER")
+				SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id,true,"ISDEFENDTARGET")
+			end			
+			
 										
 		end
     end
@@ -7108,7 +7377,7 @@ Citizen.CreateThread(function()
 					end
 				
 					local p1 = GetEntityCoords(GetPlayerPed(-1), true)
-					if GetDistanceBetweenCoords(p1.x,p1.y,p1.z,Config.Missions[MissionName].Peds[i].x,Config.Missions[MissionName].Peds[i].y,Config.Missions[MissionName].Peds[i].z,true) <= 30 and not Config.Missions[MissionName].Peds[i].spawned then 
+					if GetDistanceBetweenCoords(p1.x,p1.y,p1.z,Config.Missions[MissionName].Peds[i].x,Config.Missions[MissionName].Peds[i].y,Config.Missions[MissionName].Peds[i].z,true) <= getMissionConfigProperty(MissionName, "IndoorsMissionSpawnRadius") and not Config.Missions[MissionName].Peds[i].spawned then 
 						--print("spawn ped"..i)
 						local spawnentity = true
 						
@@ -7141,7 +7410,7 @@ Citizen.CreateThread(function()
 						
 					end				
 					local p1 = GetEntityCoords(GetPlayerPed(-1), true)
-					if GetDistanceBetweenCoords(p1.x,p1.y,p1.z,Config.Missions[MissionName].Vehicles[i].x,Config.Missions[MissionName].Vehicles[i].y,Config.Missions[MissionName].Vehicles[i].z,true) <= 30 and not Config.Missions[MissionName].Vehicles[i].spawned then 
+					if GetDistanceBetweenCoords(p1.x,p1.y,p1.z,Config.Missions[MissionName].Vehicles[i].x,Config.Missions[MissionName].Vehicles[i].y,Config.Missions[MissionName].Vehicles[i].z,true) <= getMissionConfigProperty(MissionName, "IndoorsMissionSpawnRadius") and not Config.Missions[MissionName].Vehicles[i].spawned then 
 						--print("spawn vehicle"..i)
 						local spawnentity = true
 						
@@ -7346,9 +7615,19 @@ function SpawnAPed(input,i,isVehicle,EventName,DoIsDefendBehavior,DoBlockingOfNo
 		--Stop AI from blowing themselves up!
 		--SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Peds[i].id, false, GetHashKey("HATES_PLAYER"))
 		--SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Peds[i].id, false, GetHashKey("TRUENEUTRAL"))	
-		if not getMissionConfigProperty(input,"IsDefendTarget") or (getMissionConfigProperty(input,"IsDefendTarget") and getMissionConfigProperty(input,"IsDefendTargetOnlyPlayersDamagePeds") ) then			
+		if not getMissionConfigProperty(input,"IsDefendTarget") or (getMissionConfigProperty(input,"IsDefendTarget") and getMissionConfigProperty(input,"IsDefendTargetOnlyPlayersDamagePeds") ) then	
+			--print("hey")
 			SetEntityOnlyDamagedByPlayer(Config.Missions[input].Peds[i].id, true)
-		end
+		end 
+		
+		if getMissionConfigProperty(input,"MissionDoBackup") then
+			--print("hey2")
+			SetEntityOnlyDamagedByPlayer(Config.Missions[input].Peds[i].id, false)
+			SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Peds[i].id,false,"HATES_PLAYER")
+			SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Peds[i].id,true,"PLAYER")
+			SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Peds[i].id,true,"ISDEFENDTARGET")
+		end		
+		
 		if(Config.Missions[input].Peds[i].modelHash == "s_m_m_movalien_01") then
 			SetPedDefaultComponentVariation(Config.Missions[input].Peds[i].id) --GHK for s_m_m_movalien_01
 		end
@@ -7419,8 +7698,10 @@ function SpawnAPed(input,i,isVehicle,EventName,DoIsDefendBehavior,DoBlockingOfNo
 				SetRelationshipBetweenGroups(1, GetHashKey("HOSTAGES"), GetHashKey("HATES_PLAYER"))
 				SetRelationshipBetweenGroups(1, GetHashKey("HOSTAGES"), GetHashKey("PLAYER"))
 				if getMissionConfigProperty(input, "DelicateHostages") then 
-					SetEntityOnlyDamagedByPlayer(Config.Missions[input].Peds[i].id, false) 
-				end				
+					SetEntityOnlyDamagedByPlayer(Config.Missions[input].Peds[i].id, false)
+				else			
+					SetEntityOnlyDamagedByPlayer(Config.Missions[input].Peds[i].id, true)								
+				end		
 				
 			end
 			
@@ -7749,9 +8030,17 @@ function SpawnAPed(input,i,isVehicle,EventName,DoIsDefendBehavior,DoBlockingOfNo
 		--Stop AI from blowing themselves up!
 		--SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id, false, GetHashKey("HATES_PLAYER"))
 		--SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id, false, GetHashKey("TRUENEUTRAL"))	
-		if not getMissionConfigProperty(input,"IsDefendTarget") or (getMissionConfigProperty(input,"IsDefendTarget") and getMissionConfigProperty(input,"IsDefendTargetOnlyPlayersDamagePeds") ) then			
+		if  not getMissionConfigProperty(input,"IsDefendTarget") or (getMissionConfigProperty(input,"IsDefendTarget") and getMissionConfigProperty(input,"IsDefendTargetOnlyPlayersDamagePeds") ) then			
 			SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id, true)
 		end
+
+		if getMissionConfigProperty(input,"MissionDoBackup") then
+			SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id, false)
+			SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id,false,"HATES_PLAYER")
+			SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id,true,"PLAYER")
+			SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id,true,"ISDEFENDTARGET")
+		end		
+		
 		local firingpatterns = {driverfiringpattern = false,turretfiringpattern = false}
 		if(not Config.Missions[input].Vehicles[i].nomods) then 
 			firingpatterns = doVehicleMods(Config.Missions[input].Vehicles[i].Vehicle,Config.Missions[input].Vehicles[i].id,input) 
@@ -7780,12 +8069,16 @@ function SpawnAPed(input,i,isVehicle,EventName,DoIsDefendBehavior,DoBlockingOfNo
 			--Stop AI from blowing themselves up!
 			--SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id2, false, GetHashKey("HATES_PLAYER"))
 			--SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id2, false, GetHashKey("TRUENEUTRAL"))	
-			if not getMissionConfigProperty(input,"IsDefendTarget") or (getMissionConfigProperty(input,"IsDefendTarget") and getMissionConfigProperty(input,"IsDefendTargetOnlyPlayersDamagePeds") ) then				
+			if  not getMissionConfigProperty(input,"IsDefendTarget") or (getMissionConfigProperty(input,"IsDefendTarget") and getMissionConfigProperty(input,"IsDefendTargetOnlyPlayersDamagePeds") ) then				
 				SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id2, true)
-			end
-			if(Config.Missions[input].Vehicles[i].modelHash == "s_m_m_movalien_01") then
-				SetPedDefaultComponentVariation(Config.Missions[input].Vehicles[i].id2) --GHK for s_m_m_movalien_01
-			end
+			end	
+			
+			if getMissionConfigProperty(input,"MissionDoBackup") then
+				SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id2, false)
+				SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id2,false,"HATES_PLAYER")
+				SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id2,true,"PLAYER")
+				SetEntityCanBeDamagedByRelationshipGroup(Config.Missions[input].Vehicles[i].id2,true,"ISDEFENDTARGET")
+			end			
 			
 			DecorSetInt(Config.Missions[input].Vehicles[i].id2,"mrpvpedid",i)
 			DecorSetInt(Config.Missions[input].Vehicles[i].id2,"mrpvpeddriverid",i)
@@ -7826,7 +8119,11 @@ function SpawnAPed(input,i,isVehicle,EventName,DoIsDefendBehavior,DoBlockingOfNo
 					SetRelationshipBetweenGroups(1, GetHashKey("HOSTAGES"), GetHashKey("PLAYER"))	
 					SetRelationshipBetweenGroups(5, GetHashKey("HATES_PLAYER"), GetHashKey("ISDEFENDTARGET"))
 					if getMissionConfigProperty(input, "DelicateHostages") then 
-						SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id2, false) 
+						SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id2, false)
+
+					else			
+						SetEntityOnlyDamagedByPlayer(Config.Missions[input].Vehicles[i].id2, true)							
+					
 					end					
 					--SetPedRelationshipGroupHash(Config.Missions[input].Vehicles[i].id2, GetHashKey("NO_RELATIONSHIP"))
 				end	
@@ -8471,9 +8768,17 @@ function PutPedsIntoTurrets(PedVehicle,vehicleHash,modelHash,weaponHash,MissionT
 				--Stop AI from blowing themselves up!
 				--SetEntityCanBeDamagedByRelationshipGroup(Ped, false, GetHashKey("HATES_PLAYER"))
 				--SetEntityCanBeDamagedByRelationshipGroup(Ped, false, GetHashKey("TRUENEUTRAL"))
-				if not getMissionConfigProperty(MissionName,"IsDefendTarget") or (getMissionConfigProperty(MissionName,"IsDefendTarget") and getMissionConfigProperty(MissionName,"IsDefendTargetOnlyPlayersDamagePeds") ) then			
-					SetEntityOnlyDamagedByPlayer(Ped, true)
-				end
+			if not getMissionConfigProperty(MissionName,"IsDefendTarget") or (getMissionConfigProperty(MissionName,"IsDefendTarget") and getMissionConfigProperty(MissionName,"IsDefendTargetOnlyPlayersDamagePeds") ) then
+				--Stop AI from blowing themselves up!
+				SetEntityOnlyDamagedByPlayer(Ped, true) 
+			end
+			
+			if getMissionConfigProperty(MissionName,"MissionDoBackup") then
+				SetEntityOnlyDamagedByPlayer(Ped, false) 
+				SetEntityCanBeDamagedByRelationshipGroup(Ped,false,"HATES_PLAYER")
+				SetEntityCanBeDamagedByRelationshipGroup(Ped,true,"PLAYER")
+				SetEntityCanBeDamagedByRelationshipGroup(Ped,true,"ISDEFENDTARGET")
+			end	
 				SetPedAccuracy(Ped,math.random(getMissionConfigProperty(MissionName, "SetPedMinAccuracy"),getMissionConfigProperty(MissionName, "SetPedMaxAccuracy")))
 				--if DoesEntityExist(PedVehicle) then 
 					--print("spawned:"..modelHash)
@@ -8667,8 +8972,16 @@ function PutPedsIntoTurrets(PedVehicle,vehicleHash,modelHash,weaponHash,MissionT
 				
 				SetPedAccuracy(Ped,math.random(getMissionConfigProperty(MissionName, "SetPedMinAccuracy"),getMissionConfigProperty(MissionName, "SetPedMaxAccuracy")))
 				if not getMissionConfigProperty(MissionName,"IsDefendTarget") or (getMissionConfigProperty(MissionName,"IsDefendTarget") and getMissionConfigProperty(MissionName,"IsDefendTargetOnlyPlayersDamagePeds") ) then
-					SetEntityOnlyDamagedByPlayer(Ped, true)
+					--Stop AI from blowing themselves up!
+					SetEntityOnlyDamagedByPlayer(Ped, true) 
 				end
+				
+				if getMissionConfigProperty(MissionName,"MissionDoBackup") then
+					SetEntityOnlyDamagedByPlayer(Ped, false) 
+					SetEntityCanBeDamagedByRelationshipGroup(Ped,false,"HATES_PLAYER")
+					SetEntityCanBeDamagedByRelationshipGroup(Ped,true,"PLAYER")
+					SetEntityCanBeDamagedByRelationshipGroup(Ped,true,"ISDEFENDTARGET")
+				end	
 				if(modelHash  == "s_m_m_movalien_01") then
 					SetPedDefaultComponentVariation(Ped) --GHK for s_m_m_movalien_01
 				end
@@ -8858,6 +9171,19 @@ function PutPlayerIntoTargetVehicle(PedVehicle,input)
 			return
 		
 		end
+		
+		--get override, like for apc gun, which is not a turret...
+		local prefseat = getPreferrableSeatId(input,GetEntityModel(PedVehicle))
+	
+		if prefseat ~=nil and IsVehicleSeatFree(PedVehicle, prefseat) then
+			SetPedIntoVehicle(GetPlayerPed(-1), PedVehicle, prefseat)
+			setPed=true
+			--print("prefseat:"..prefseat)
+			Wait(3500)
+			return 
+		
+		end		
+		
 		
 		for v = -1,maxseatid,1 
 		do
@@ -9052,6 +9378,237 @@ function getGoodSpawnSpot(pos)
 end
 
 
+RegisterNetEvent("mt:playvoicesound")
+AddEventHandler("mt:playvoicesound",function(decorid,decorval,greetspeech,voicename)
+	--print(decorid..decorval..greetspeech..voicename)
+	for ped in EnumeratePeds() do
+		
+			if DecorGetInt(ped, decorval) > 0 then
+				if DecorGetInt(ped, decorval) == decorid then
+					--print("made it")
+					PlayAmbientSpeechWithVoice(ped, greetspeech, voicename, "SPEECH_PARAMS_STANDARD", false)
+					break
+				end
+				
+			end
+	end
+
+
+
+end)
+
+
+
+RegisterNetEvent("SafeHouseAnims")
+AddEventHandler("SafeHouseAnims",function(entD,entL,input)
+	
+	
+
+		
+	
+	local PedDoctor = entD.ent
+	local PedLeader = entL.ent
+	local PedDoctorModelL = entD.model
+	local PedLeaderModelL = entL.model
+	
+	if PedLeader and not getMissionConfigProperty(input, "SafeHouseDoAnimsAndGreetsLeader") then 
+		return
+	end 
+	
+	if PedDoctor and not getMissionConfigProperty(input, "SafeHouseDoAnimsAndGreetsDoctor") then 
+		return
+	end 
+	
+	while (PedDoctor or PedLeader)  do
+    Citizen.Wait(0)
+	
+		--if PedDoctor or PedLeader then 
+			
+			RequestAnimDict("random@shop_gunstore")
+			while (not HasAnimDictLoaded("random@shop_gunstore")) do 
+				Citizen.Wait(0) 
+			end
+			
+			
+			local ply = GetPlayerPed(-1)
+			local plyCoords = GetEntityCoords(ply, 0)
+			
+			if PedLeader and not PlayingAnimL then 
+				local voicename 
+				local greetspeech
+				
+				local doGreet = (math.random(1,100) <= getMissionConfigProperty(input, "SafeHousePedLeaderChanceToGreet"))
+			
+				
+				
+				if string.sub(string.lower(PedLeaderModelL),3,3) == 'f' or 
+				getMissionConfigProperty(input, "SafeHouseLeaderForceFemale")
+				then
+					local index = math.random(1, #getMissionConfigProperty(input, "SafeHousePedFemaleLeaderVoiceNames"))
+					voicename =  getMissionConfigProperty(input, "SafeHousePedFemaleLeaderVoiceNames")[index]
+					greetspeech =  getMissionConfigProperty(input, "SafeHousePedFemaleLeaderGreetSpeech")[index]
+				else
+					local index = math.random(1, #getMissionConfigProperty(input, "SafeHousePedMaleLeaderVoiceNames"))
+					voicename =  getMissionConfigProperty(input, "SafeHousePedMaleLeaderVoiceNames")[index]
+						
+					greetspeech =  getMissionConfigProperty(input, "SafeHousePedMaleLeaderGreetSpeech")[index]	
+				end
+				
+				local ped = PedLeader
+				local pcoords =  GetEntityCoords(ped, 0)
+				
+			
+				distance = GetDistanceBetweenCoords(pcoords.x, pcoords.y, pcoords.z, GetEntityCoords(GetPlayerPed(-1)))
+				if PlayingAnimL ~= true then
+					
+					 local anim = getMissionConfigProperty(input, "SafeHousePedLeaderAnims")[math.random(1, #getMissionConfigProperty(input, "SafeHousePedLeaderAnims"))]
+					
+					--TaskPlayAnim(ped,"random@shop_gunstore","_idle_b", 1.0, -1.0, -1, 0, 1, true, true, true)
+					TaskStartScenarioInPlace(ped, anim, 0, true)
+					Citizen.Wait(math.random(1000,6000))
+					ClearPedTasks(ped)
+					PlayingAnimL = true
+					
+					anim = getMissionConfigProperty(input, "SafeHousePedLeaderAnims")[math.random(1, #getMissionConfigProperty(input, "SafeHousePedLeaderAnims"))]
+					TaskStartScenarioInPlace(ped, anim, 0, true)
+					if doGreet then
+							--TaskPlayAnim(ped,"random@shop_gunstore","_greeting", 1.0, -1.0, 4000, 0, 1, true, true, true)
+							
+							TriggerServerEvent("sv:playvoicesound",1,"mrppedsafehouse", greetspeech,voicename)
+							--PlayAmbientSpeechWithVoice(ped, greetspeech, voicename, "SPEECH_PARAMS_STANDARD", false);
+					end 					
+					Citizen.Wait(4000)
+					ClearPedTasks(ped)
+					if PlayingAnimL == true then
+						
+						--TaskPlayAnim(ped,"random@shop_gunstore","_positive_b", 1.0, -1.0, -1, 0, 1, true, true, true)
+						anim = getMissionConfigProperty(input, "SafeHousePedLeaderAnims")[math.random(1, #getMissionConfigProperty(input, "SafeHousePedLeaderAnims"))]
+						TaskStartScenarioInPlace(ped, anim, 0, true)
+						Citizen.Wait(math.random(1000,6000))
+						ClearPedTasks(ped)
+						
+					end
+				else
+					--TaskPlayAnim(ped,"random@shop_gunstore","_impatient_b", 1.0, -1.0, -1, 0, 1, true, true, true)
+				end
+							
+			end
+			
+			
+			if PedDoctor and not PlayingAnimD then 
+			
+				local ped = PedDoctor
+				local pcoords =  GetEntityCoords(ped, 0)
+
+				local voicename 
+				local greetspeech 
+			
+				local doGreet = (math.random(1,100) <= getMissionConfigProperty(input, "SafeHousePedDoctorChanceToGreet"))
+				
+				if string.sub(string.lower(PedDoctorModelL),3,3) == 'f' or 
+				getMissionConfigProperty(input, "SafeHouseDoctorForceFemale")
+				then
+					local index = math.random(1, #getMissionConfigProperty(input, "SafeHousePedFemaleDoctorVoiceNames"))
+					voicename =  getMissionConfigProperty(input, "SafeHousePedFemaleDoctorVoiceNames")[index]
+					greetspeech =  getMissionConfigProperty(input, "SafeHousePedFemaleDoctorGreetSpeech")[index]
+				else
+					local index = math.random(1, #getMissionConfigProperty(input, "SafeHousePedMaleDoctorVoiceNames"))
+					voicename =  getMissionConfigProperty(input, "SafeHousePedMaleDoctorVoiceNames")[index]
+					greetspeech =  getMissionConfigProperty(input, "SafeHousePedMaleDoctorGreetSpeech")[index]
+							
+				end				
+				
+				
+				
+				
+				distance = GetDistanceBetweenCoords(pcoords.x, pcoords.y, pcoords.z, GetEntityCoords(GetPlayerPed(-1)))
+				if PlayingAnimD ~= true then
+					--TaskPlayAnim(ped,"random@shop_gunstore","_impatient_a", 1.0, -1.0, -1, 0, 1, true, true, true)
+					 local anim = getMissionConfigProperty(input, "SafeHousePedDoctorAnims")[math.random(1, #getMissionConfigProperty(input, "SafeHousePedDoctorAnims"))]
+					 TaskStartScenarioInPlace(ped, anim, 0, true)
+					
+					Citizen.Wait(math.random(1000,6000))
+					ClearPedTasks(ped)
+					PlayingAnimD = true
+					
+					anim = getMissionConfigProperty(input, "SafeHousePedDoctorAnims")[math.random(1, #getMissionConfigProperty(input, "SafeHousePedDoctorAnims"))]
+					TaskStartScenarioInPlace(ped, anim, 0, true)
+					if doGreet then
+						--TaskPlayAnim(ped,"random@shop_gunstore","_greeting", 1.0, -1.0, 4000, 0, 1, true, true, true)
+						--PlayAmbientSpeechWithVoice(ped, greetspeech, voicename, "SPEECH_PARAMS_STANDARD", false);
+						TriggerServerEvent("sv:playvoicesound",2,"mrppedsafehouse", greetspeech,voicename)
+					end
+					
+					PlayingAnimD = true
+					Citizen.Wait(4000)
+					ClearPedTasks(ped)
+					if PlayingAnimD == true  then
+						
+						
+						--TaskPlayAnim(ped,"random@shop_gunstore","_positive_a", 1.0, -1.0, -1, 0, 1, true, true, true)
+						
+						anim = getMissionConfigProperty(input, "SafeHousePedDoctorAnims")[math.random(1, #getMissionConfigProperty(input, "SafeHousePedDoctorAnims"))]
+						TaskStartScenarioInPlace(ped, anim, 0, true)						
+						Citizen.Wait(math.random(1000,6000))
+						ClearPedTasks(ped)
+					end
+				
+				else
+					--TaskPlayAnim(ped,"random@shop_gunstore","_impatient_a", 1.0, -1.0, -1, 0, 1, true, true, true)
+				end
+				
+				
+			end			
+			
+			Citizen.Wait(math.random(10000,30000))
+		
+		--end 
+			--only want to run this once... lets break out
+			--if PlayingAnimD and PlayingAnimL then
+				--print("break")
+				--break
+			--end
+			
+			--reset to loop
+			PlayingAnimD = false
+			PlayingAnimL = false
+		end 
+
+end)
+
+
+--[[
+Citizen.CreateThread(function()
+  while true do
+    Citizen.Wait(0)
+	
+	
+		RequestAnimDict("random@shop_gunstore")
+		while (not HasAnimDictLoaded("random@shop_gunstore")) do 
+			Citizen.Wait(0) 
+		end
+		
+		local ply = GetPlayerPed(-1)
+		local plyCoords = GetEntityCoords(ply, 0)
+		local pcoords =  GetEntityCoords(ply, 0)
+		
+			distance = GetDistanceBetweenCoords(ShopClerk[i].x, ShopClerk[i].y, ShopClerk[i].z, GetEntityCoords(GetPlayerPed(-1)))
+			if distance < 5.5 and PlayingAnim ~= true then
+				TaskPlayAnim(ShopClerk[i].id,"random@shop_gunstore","_greeting", 1.0, -1.0, 4000, 0, 1, true, true, true)
+				PlayingAnim = true
+				Citizen.Wait(4000)
+				if PlayingAnim == true then
+					TaskPlayAnim(ShopClerk[i].id,"random@shop_gunstore","_idle_b", 1.0, -1.0, -1, 0, 1, true, true, true)
+				end
+			else
+				TaskPlayAnim(ShopClerk[i].id,"random@shop_gunstore","_idle_b", 1.0, -1.0, -1, 0, 1, true, true, true)
+			end
+		
+		
+  end
+end)
+]]--
+
 --Spawn Safe House Props
 --Only for non IsRandom atm
 function SpawnSafeHouseProps(input,rIndex,IsRandomSpawnAnywhereInfo) 
@@ -9060,6 +9617,8 @@ function SpawnSafeHouseProps(input,rIndex,IsRandomSpawnAnywhereInfo)
 		local Prop
 		local PedLeader
 		local PedDoctor
+
+		
 		
 		--if we have already spawned props at the mission launch. 
 		if MissionSpawnedSafeHouseProps then
@@ -9135,6 +9694,7 @@ function SpawnSafeHouseProps(input,rIndex,IsRandomSpawnAnywhereInfo)
 			if #getMissionConfigProperty(input, "SafeHousePedLeaders")  > 0 then 
 			--spawn leader
 				randomPropModelHash = getMissionConfigProperty(input, "SafeHousePedLeaders")[math.random(1, #getMissionConfigProperty(input, "SafeHousePedLeaders"))]
+				PedLeaderModel = randomPropModelHash
 				local randomPedWeapon = getMissionConfigProperty(input, "SafeHousePedWeapons")[math.random(1, #getMissionConfigProperty(input, "SafeHousePedWeapons"))]
 					
 				if randomPropModelHash then 	
@@ -9187,7 +9747,7 @@ function SpawnSafeHouseProps(input,rIndex,IsRandomSpawnAnywhereInfo)
 				--spawn doctor
 				randomPropModelHash = getMissionConfigProperty(input, "SafeHousePedDoctors")[math.random(1, #getMissionConfigProperty(input, "SafeHousePedDoctors"))]
 				randomPedWeapon = getMissionConfigProperty(input, "SafeHousePedWeapons")
-					
+				PedDoctorModel = randomPropModelHash
 				RequestModel(randomPropModelHash)
 				while not HasModelLoaded(randomPropModelHash) do
 					Wait(1)
@@ -9211,7 +9771,7 @@ function SpawnSafeHouseProps(input,rIndex,IsRandomSpawnAnywhereInfo)
 				--lets forget about ground z checks, since they will be close to the center of the marker
 				PedDoctor = CreatePed(2, randomPropModelHash,  rXoffset, rYoffset, randomLocation.z, rHeading, true, true)
 				SetModelAsNoLongerNeeded(randomPropModelHash)
-				DecorSetInt(PedDoctor,"mrppedsafehouse",1)
+				DecorSetInt(PedDoctor,"mrppedsafehouse",2)
 				DecorSetInt(PedDoctor,"mrppedid",1)	
 				SetPedFleeAttributes(PedDoctor, 0, 0)
 				SetEntityInvincible(PedDoctor, true)
@@ -9230,6 +9790,12 @@ function SpawnSafeHouseProps(input,rIndex,IsRandomSpawnAnywhereInfo)
 			
 			end
 			
+		end
+		
+		if getMissionConfigProperty(input, "SafeHouseDoAnimsAndGreets") then
+			TriggerEvent('SafeHouseAnims',{ent=PedDoctor,model=PedDoctorModel},{ent=nil,model=PedLeaderModel},input)
+		
+			TriggerEvent('SafeHouseAnims',{ent=nil,model=PedDoctorModel},{ent=PedLeader,model=PedLeaderModel},input)
 		end
 		
 		--lets spawn vehicles now on both land and sea 
@@ -9483,9 +10049,11 @@ function SpawnRandomProp(input,rIndex,IsRandomSpawnAnywhereInfo)
 				SetRelationshipBetweenGroups(1, GetHashKey("HOSTAGES"), GetHashKey("HATES_PLAYER"))
 				SetRelationshipBetweenGroups(1, GetHashKey("HOSTAGES"), GetHashKey("PLAYER"))
 				
-				if not getMissionConfigProperty(input,"IsDefendTarget") or (getMissionConfigProperty(input,"IsDefendTarget") and getMissionConfigProperty(input,"IsDefendTargetOnlyPlayersDamagePeds") ) then	
-					SetEntityOnlyDamagedByPlayer(Config.Missions[input].Peds[1].id, true) 
-				end
+				--if not getMissionConfigProperty(input,"IsDefendTarget") or (getMissionConfigProperty(input,"IsDefendTarget") and getMissionConfigProperty(input,"IsDefendTargetOnlyPlayersDamagePeds") ) then	
+				
+				SetEntityOnlyDamagedByPlayer(Config.Missions[input].Peds[1].id, true) 
+				--end
+				
 				if getMissionConfigProperty(input, "DelicateHostages") then 
 					SetEntityOnlyDamagedByPlayer(Config.Missions[input].Peds[1].id, false) 
 				end						
@@ -9622,17 +10190,36 @@ function SpawnRandomProp(input,rIndex,IsRandomSpawnAnywhereInfo)
 								SetRelationshipBetweenGroups(5, GetHashKey("HATES_PLAYER"), GetHashKey("ISDEFENDTARGET"))
 								SetRelationshipBetweenGroups(5, GetHashKey("TRUENEUTRAL"), GetHashKey("ISDEFENDTARGET"))
 								SetRelationshipBetweenGroups(0, GetHashKey("ISDEFENDTARGET"), GetHashKey("PLAYER"))	
+								
+								
 
 								if not Config.Missions[input].IsDefendTargetPassenger then
 									SetPedIntoVehicle(TargetPed,TargetPedVehicle, -1)
 								else
 									--check where the targetped passenger should go:
+									
+									local passengerseatid = getIsDefendTargetSeatId(input,veh)
 									if not Config.Missions[input].IsDefendTargetPassengerSeatId then
-										SetPedIntoVehicle(TargetPed,TargetPedVehicle, 0)
-									else									
+										if not passengerseatid then 
+											SetPedIntoVehicle(TargetPed,TargetPedVehicle, 0)
+										else 
+											SetPedIntoVehicle(TargetPed,TargetPedVehicle,  passengerseatid)
+										end
+									else
+										passengerseatid = Config.Missions[input].IsDefendTargetPassengerSeatId
 										SetPedIntoVehicle(TargetPed,TargetPedVehicle, Config.Missions[input].IsDefendTargetPassengerSeatId)
 									end
-									TriggerEvent("mt:dotargetpassenger",TargetPed,TargetPedVehicle)
+									--print(GetVehicleMaxNumberOfPassengers(TargetPedVehicle))
+									--local passengerseatid = getIsDefendTargetSeatId(input,veh)
+									
+									--override when seatid is explicity set:
+									--if Config.Missions[input].IsDefendTargetPassengerSeatId then 
+										 --passengerseatid = Config.Missions[input].IsDefendTargetPassengerSeatId
+								
+									--end		
+								
+									
+									TriggerEvent("mt:dotargetpassenger",TargetPed,TargetPedVehicle,passengerseatid)
 									-- TriggerEvent("mt:missiontext2", "You are the driver. Protect the target.", 1000)
 								end				
 								--SetPedIntoVehicle(TargetPed,TargetPedVehicle, -1)
@@ -10022,12 +10609,19 @@ function SpawnProps(input)
 									SetPedIntoVehicle(TargetPed,TargetPedVehicle, -1)
 								else
 									--check where the targetped passenger should go:
+									
+									local passengerseatid = getIsDefendTargetSeatId(input,veh)
 									if not Config.Missions[input].IsDefendTargetPassengerSeatId then
-										SetPedIntoVehicle(TargetPed,TargetPedVehicle, 0)
-									else									
+										if not passengerseatid then 
+											SetPedIntoVehicle(TargetPed,TargetPedVehicle, 0)
+										else 
+											SetPedIntoVehicle(TargetPed,TargetPedVehicle,  passengerseatid)
+										end
+									else
+										passengerseatid = Config.Missions[input].IsDefendTargetPassengerSeatId
 										SetPedIntoVehicle(TargetPed,TargetPedVehicle, Config.Missions[input].IsDefendTargetPassengerSeatId)
-									end
-									TriggerEvent("mt:dotargetpassenger",TargetPed,TargetPedVehicle)
+									end								
+									TriggerEvent("mt:dotargetpassenger",TargetPed,TargetPedVehicle,passengerseatid)
 									-- TriggerEvent("mt:missiontext2", "You are the driver. Protect the target.", 1000)
 								end
 								local movespeed = GetVehicleMaxSpeed(GetEntityModel(TargetPedVehicle))
@@ -11357,7 +11951,23 @@ function calcMissionStats()
 				
 			
 			end
+			--[[
+			if  DecorGetInt(ped, "mrppedsafehouse") == 1 and not PlayingAnimL and PedLeaderModel  then
 			
+		
+				 TriggerEvent('SafeHouseAnims',{ent=nil,model=PedDoctorModel},{ent=ped,model=PedLeaderModel},input)
+				
+			
+			end
+			
+			if  DecorGetInt(ped, "mrppedsafehouse") == 2 and not PlayingAnimD and PedDoctorModel then
+			print("hey2")
+				 TriggerEvent('SafeHouseAnims',{ent=ped,model=PedDoctorModel},{ent=nil,model=PedLeaderModel},input)
+		
+				
+			
+			end			
+			]]--
 			if not isNPCDead and DecorGetInt(ped, "mrpvpeddriverid") > 0 and GlobalTargetPed then 
 			
 			
@@ -13611,6 +14221,12 @@ function BuyObj()
 	local BuyStartTime = 30
     local BuyTime = BuyStartTime
     while buying == true do
+		
+		if not (Active == 1 and MissionName ~="N/A") then 
+			buying = false
+			return
+		end		
+	
 	
 		if(getMissionConfigProperty(MissionName, "SafeHouseGiveImmediately")) then 
 			BuyTime = 0
@@ -13871,6 +14487,14 @@ Citizen.CreateThread(function()
 					end
 					
 				end
+			end
+			
+			if getMissionConfigProperty(MissionName, "UseMissionDrop") then 
+				if MissionDropBlip then
+					DrawMarker(40, MissionDropBlipCoords.x, MissionDropBlipCoords.y, MissionDropBlipCoords.z, 0.0, 0.0, 0.0, 0, 0.0, 0.0, 3.0,3.0, 3.0, 117, 218, 255, 100, true, true, 2, true, false, false, false)					
+				
+				end
+			
 			end
 			if getMissionConfigProperty(MissionName, "UseSafeHouse") then 
 			   if (GetGameTimer() - getMissionConfigProperty(MissionName, "SafeHouseTimeTillNextUse")) > playerSafeHouse then
@@ -14725,6 +15349,9 @@ Citizen.CreateThread(function()
 		
         if Active == 1 and MissionName ~="N/A" and IsControlPressed(0, 43) and not IsPlayerFreeAiming(PlayerId()) then
 			if DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then
+			
+			HelpMessage("Press ~INPUT_LOOK_BEHIND~ and ~INPUT_PICKUP~ for a quick tutorial on controls and mission help",false,0)
+				
 				local currmissionminutesleft = string.format("%02d", tostring(math.floor((MilliSecondsLeft)/60000) % 60))
 				local currmissionsecondsleft = string.format("%02d", tostring(math.floor((MilliSecondsLeft)/1000) % 60))
 			
@@ -15525,7 +16152,336 @@ function doTeleportToSafeHouse(isOnSpawn)
 
 end
 
+--does a toggle on/off everytime it is called
+RegisterNetEvent("doMissionDrop")
+AddEventHandler("doMissionDrop",function()
+	
+	
+	if (IsEntityDead(GetPlayerPed(-1)) or DoingMissionTeleport) 
+	or not (MissionName ~="N/A" and Active == 1)
+	
+	then --or DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 1 then 
+		return
+	end
+	PlaySoundFrontend(-1, "Apt_Style_Purchase", "DLC_APT_Apartment_SoundSet", 0)
+	if not MissionDropBlip then 
+		
+		local pcoords = GetEntityCoords(GetPlayerPed(-1))
+		MissionDropHeading = GetEntityHeading(GetPlayerPed(-1))
+		MissionDropBlipCoords.x=pcoords.x
+		MissionDropBlipCoords.y=pcoords.y
+		MissionDropBlipCoords.z=pcoords.z+1
+		MissionDropBlip = AddBlipForCoord(pcoords.x, pcoords.y, pcoords.z)
+		
+		SetBlipSprite (MissionDropBlip, 94)
+		SetBlipDisplay(MissionDropBlip, 4)
+		SetBlipScale  (MissionDropBlip, 1.2)
+		SetBlipColour (MissionDropBlip, 3)
+		SetBlipAsShortRange(MissionDropBlip, false)	
 
+		BeginTextCommandSetBlipName("STRING")
+		AddTextComponentString("Mission Reinforcement Drop ($-"..getMissionConfigProperty(MissionName, "UseMissionDropFee")..")")
+		EndTextCommandSetBlipName(MissionDropBlip)
+		MissionDropDid=true
+		
+		TriggerEvent("mt:missiontext2","Mission Reinforcement Drop created", 4000)
+		
+		HelpMessage("Mission Reinforcement Drop created. Press~INPUT_DUCK~ and ~INPUT_COVER~ to remove",false,5000)
+		Wait(5000)
+		HelpMessage("To fast travel here after respawn, Press ~INPUT_LOOK_BEHIND~ and ~INPUT_COVER~. Cost: $"..getMissionConfigProperty(MissionName, "UseMissionDropFee"),false,5000)
+		--print("MissionDropDid")
+	else 
+		
+		RemoveBlip(MissionDropBlip)
+		MissionDropBlip=nil
+		MissionDropBlipCoords={x=-50000,y=-50000,z=-50000}
+		HelpMessage("Mission Reinforcement Drop Removed. Press~INPUT_DUCK~ and ~INPUT_COVER~ to add another",false,5000)
+		
+		TriggerEvent("mt:missiontext2","Mission Reinforcement Drop removed", 4000)
+		
+	
+	end
+
+end)
+
+RegisterNetEvent("doMissionDropTeleport")
+AddEventHandler("doMissionDropTeleport",function()
+	--if currently teleporting..
+	
+	
+	if (IsEntityDead(GetPlayerPed(-1)) or DoingMissionTeleport) 
+	or not (MissionName ~="N/A" and Active == 1)
+	
+	then --or DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 1 then 
+		return
+	end
+	
+	
+
+	if MissionName ~="N/A" and Active == 1 then
+	
+		if not MissionDropBlip then 
+			TriggerEvent("mt:missiontext2","No Mission Reinforcement Drop set", 4000)
+			HelpMessage("Press~INPUT_DUCK~ and ~INPUT_COVER~ to create a Mission Reinforcement Drop at your location",true,5000)
+			return
+		end
+		--print(MissionDropDid)
+		if MissionDropDid then 
+			TriggerEvent("mt:missiontext2","Mission Reinforcement Drop only available after you respawn", 4000)
+			HelpMessage("Press~INPUT_DUCK~ and ~INPUT_COVER~ to remove the Mission Reinforcement Drop",false,5000)
+			return
+		end
+	
+	
+		if getMissionConfigProperty(MissionName, "UseMissionDrop")  and MissionDropBlip then
+		
+			local locationdata = {x=0.0,y=0.0,z=0.0}
+			
+			--local cInitial = GetEntityCoords(GetPlayerPed(-1))
+			--local watertest = GetWaterHeight(cInitial.x,cInitial.y,cInitial.z)
+			--local leaveWaterVehicle = false 
+			--if (watertest  == 1 or watertest  == true) and not IsPedOnFoot(GetPlayerPed(-1))  then 
+			
+		
+			
+			
+			local EntityToTeleport = GetPlayerPed(-1)
+			local onFoot = true
+			if (not IsPedOnFoot(GetPlayerPed(-1))) and not getMissionConfigProperty(MissionName, "UseMissionDropNoVehicle")  then --and IsEntityInWater(boat)) then 
+				EntityToTeleport = GetVehiclePedIsIn(PlayerPedId(), false)
+				onFoot = false
+			end
+			
+			--local origx
+			--local origy 
+			
+			--lets not accidently teleport boats onto land
+			if onFoot then
+				
+				locationdata.x = MissionDropBlipCoords.x --+ rndx
+				locationdata.y = MissionDropBlipCoords.y --+ rndy
+				locationdata.z = MissionDropBlipCoords.z
+				
+			
+				--local rHeading = math.random(0, 360) + 0.0
+				--local theta = (rHeading / 180.0) * 3.14		
+				--locationdata = vector3(locationdata.x, locationdata.y, locationdata.z) - vector3(math.cos(theta) *  math.floor(Config.Missions[MissionName].MarkerS.Size.x/2 + 1.0), math.sin(theta) * math.floor(Config.Missions[MissionName].MarkerS.Size.x/2 + 1.0), 0.0)
+				
+				
+				local coords = GetEntityCoords(EntityToTeleport)
+				if GetDistanceBetweenCoords(coords.x,coords.y,coords.z, locationdata.x,locationdata.y,locationdata.z, true) < 5 then--print
+					-- no point teleporting when so close
+				
+					return
+					
+				end				
+			
+				
+			else
+			
+				locationdata.x = MissionDropBlipCoords.x --+ rndx
+				locationdata.y = MissionDropBlipCoords.y --+ rndy
+				locationdata.z = MissionDropBlipCoords.z
+
+				local coords = GetEntityCoords(EntityToTeleport)
+				
+				
+				
+				if GetDistanceBetweenCoords(coords.x,coords.y,coords.z, locationdata.x,locationdata.y,locationdata.z, true) < 5 then--print
+					-- no point teleporting when so close
+					return
+					
+				end 
+				
+				local model = GetEntityModel(EntityToTeleport) 
+				if(IsThisModelAHeli(model) or IsThisModelAPlane(model)) then 
+					SetVehicleLandingGear(EntityToTeleport, 0)
+				end
+			
+			end
+			--print('teleportto x'..locationdata.x ..' y:'..locationdata.y ..' z:'..locationdata.z )
+			
+			TriggerEvent("mt:missiontext2","Traveling to Mission Reinforcement Drop...", 4000)
+			MissionDropDid=true
+			
+
+			
+			
+
+			if getMissionConfigProperty(MissionName, "UseMissionDropFee") > 0 then
+
+					local currentmoney = 0
+					local rejuvcost = getMissionConfigProperty(MissionName, "UseMissionDropFee")
+					local totalmoney = 0		
+					
+					local _,currentmoney = StatGetInt('MP0_WALLET_BALANCE',-1)
+					playerMissionMoney =  0 - rejuvcost
+					totalmoney =  currentmoney - rejuvcost		
+						
+					if UseESX then 
+						TriggerServerEvent("paytheplayer", totalmoney)
+						TriggerServerEvent("UpdateUserMoney", totalmoney)
+					else
+							--DecorSetInt(GetPlayerPed(-1),"mrpplayermoney",totalmoney)
+						DecorSetInt(GetPlayerPed(-1),"mrpplayermoney",DecorGetInt(GetPlayerPed(-1),"mrpplayermoney") + playerMissionMoney)			
+						mrpplayermoneyG = DecorGetInt(GetPlayerPed(-1),"mrpplayermoney")			
+						StatSetInt('MP0_WALLET_BALANCE',totalmoney, true)
+					end	
+
+					Notify("~h~~b~Mission Reinforcement Drop Fee: ~g~$"..getMissionConfigProperty(MissionName, "UseMissionDropFee"))
+					
+			end
+			
+			
+			FreezeEntityPosition(EntityToTeleport, true)
+			DoScreenFadeOut(1000)
+			while IsScreenFadingOut() do Citizen.Wait(0) end
+			NetworkFadeOutEntity(GetPlayerPed(-1), true, false)
+			--TriggerEvent("chatMessage", "^1[MISSIONS]: ^0Travelling to the mission safehouse...")
+			--TriggerEvent("mt:missiontext2","Travelling to the mission safehouse...", 3000)
+			Wait(1000)
+			--print("spawning at"..locationdata.x)
+			SetEntityCoords(EntityToTeleport,locationdata.x, locationdata.y,locationdata.z)
+			--SetEntityHeading(GetPlayerPed(-1), h)
+			NetworkFadeInEntity(GetPlayerPed(-1), 0)
+			Wait(1000)
+			FreezeEntityPosition(EntityToTeleport, false)
+			
+			
+			--for obj in EnumerateObjects() do
+				--if DecorGetInt(obj, "mrpsafehousepropid") > 0 then
+					local p1 = GetEntityCoords(GetPlayerPed(-1), true)
+					--local p2 = GetEntityCoords(obj, true)
+					
+					
+					--local dx = p2.x - p1.x
+					--local dy = p2.y - p1.y
+					
+					--local dx = origx - p1.x
+					--local dy = origy - p1.y
+					
+					--local heading = GetHeadingFromVector_2d(dx, dy)				 
+					SetEntityHeading(EntityToTeleport,MissionDropHeading) 
+					SetGameplayCamRelativeHeading(0.0) 
+					--break
+				--end
+			--end					
+			
+			--SetGameplayCamRelativeHeading(0.0)
+			PlaySoundFrontend(-1, "CHECKPOINT_AHEAD", "HUD_MINI_GAME_SOUNDSET", 0)
+			DoScreenFadeIn(1000)
+			while IsScreenFadingIn() do Citizen.Wait(0)	end
+		
+			--TriggerEvent("chatMessage", "^1[MISSIONS]: ^0Traveled to your mission respawn location...")
+			TriggerEvent("mt:missiontext2","Traveled to Mission Reinforcement Drop...", 4000)
+			
+			
+			--SPAWN DROP Aircraft
+		--[[	
+		local aircraftmodel = getMissionConfigProperty(MissionName, "UseMissionDropAircraft")[math.random(1, #getMissionConfigProperty(MissionName, "UseMissionDropAircraft"))]
+		local planeSpawnDistance = 50.0
+           RequestModel(GetHashKey(aircraftmodel))
+		  
+           while not HasModelLoaded(GetHashKey(aircraftmodel)) do
+              Wait(0)
+           end
+		   
+        local rHeading = math.random(0, 360) + 0.0
+		
+		local spawnx = MissionDropBlipCoords.x
+		local spawny = MissionDropBlipCoords.y
+		local spawnz = MissionDropBlipCoords.z
+			
+
+
+        local planeSpawnDistance = (planeSpawnDistance and tonumber(planeSpawnDistance) + 0.0) or 400.0 -- this defines how far away the plane is spawned
+        local theta = (rHeading / 180.0) * 3.14
+        local rPlaneSpawn = vector3(spawnx, spawny, spawnz) - vector3(math.cos(theta) * planeSpawnDistance, math.sin(theta) * planeSpawnDistance, -150.0)
+		
+        local dx = spawnx - rPlaneSpawn.x
+        local dy = spawny - rPlaneSpawn.y
+        local heading = GetHeadingFromVector_2d(dx, dy) -- determine plane heading from coordinates
+		
+		local doingDrop = true
+
+        local aircraft = CreateVehicle(GetHashKey(aircraftmodel), rPlaneSpawn, heading, true, true)
+		
+		doVehicleMods(aircraftmodel,aircraft,MissionName)
+		DecorSetInt(aircraft,"mrpvehdid",65432) --not really needed
+        SetEntityHeading(aircraft, heading)
+        SetVehicleDoorsLocked(aircraft, 2) -- lock the doors so pirates don't get in
+        SetEntityDynamic(aircraft, true)
+        ActivatePhysics(aircraft)
+        SetVehicleForwardSpeed(aircraft, 60.0)
+        SetHeliBladesFullSpeed(aircraft) -- works for planes I guess
+        SetVehicleEngineOn(aircraft, true, true, false)
+        SetVehicleLandingGear(aircraft, 3) -- retract the landing gear
+        OpenVehicleBombBay(aircraft) -- opens the hatch below the plane for added realism
+        SetEntityProofs(aircraft, true, false, true, false, false, false, false, false)
+
+         RequestModel(GetHashKey("s_m_m_pilot_02"))
+		  
+           while not HasModelLoaded(GetHashKey("s_m_m_pilot_02")) do
+              Wait(0)
+           end		
+		
+        local pilot = CreatePedInsideVehicle(aircraft, 1, GetHashKey("s_m_m_pilot_02"), -1, true, true)
+		DecorSetInt(pilot,"mrpvpedid",65432) --only used to show blip on radar
+		
+		--local pilot = CreatePed(2, "s_m_m_pilot_02", rPlaneSpawn.x, rPlaneSpawn.y, rPlaneSpawn.z, heading, true, true)
+		--print(tostring(DoesEntityExist(pilot)))
+		
+		--CreatePedInsideVehicle(aircraft, 1, GetHashKey("s_m_m_pilot_02"), -1, true, true) 
+		--SetPedIntoVehicle(pilot,aircraft, -1)
+			
+        SetBlockingOfNonTemporaryEvents(pilot, true) -- ignore explosions and other shocking events
+        SetPedRandomComponentVariation(pilot, false)
+        SetPedKeepTask(pilot, true)
+        --SetPlaneMinHeightAboveGround(aircraft, 50) -- the plane shouldn't dip below the defined altitude
+		Citizen.InvokeNative( 0xB893215D8D4C015B, airplane, 50)
+
+        TaskVehicleDriveToCoord(pilot, aircraft, vector3(spawnx, spawny, spawnz) + vector3(0.0, 0.0, 150.0), 60.0, 0, GetHashKey(aircraftmodel), 262144, 15.0, -1.0) -- to the dropsite, could be replaced with a task sequence
+
+        local droparea = vector2(spawnx, spawny)
+        local planeLocation = vector2(GetEntityCoords(aircraft).x, GetEntityCoords(aircraft).y)
+		
+        while not IsEntityDead(pilot) and #(planeLocation - droparea) > 5.0 do -- wait for when the plane reaches the dropCoords ± 5 units
+            Wait(100)
+            planeLocation = vector2(GetEntityCoords(aircraft).x, GetEntityCoords(aircraft).y) -- update plane coords for the loop
+        end
+
+        if IsEntityDead(pilot) then -- I think this will end the script if the pilot dies, no idea how to return works
+            print("PILOT: dead")
+			doingDrop=false
+           -- do return end -- <--still allow the paradrop to happen even if the plane is not there or the pilot.
+        end
+		--Notify("~r~Enemy paradrop on its way!")
+		if not doingDrop then 
+			TaskVehicleDriveToCoord(pilot, aircraft, 0.0, 0.0, 500.0, 60.0, 0, GetHashKey(aircraftmodel), 262144, -1.0, -1.0) -- disposing of the plane like Rockstar does, send it to 0; 0 coords with -1.0 stop range, so the plane won't be able to achieve its task
+		end
+        SetEntityAsNoLongerNeeded(pilot) 
+        SetEntityAsNoLongerNeeded(aircraft)					
+			
+			]]--
+			
+			---END DROP AIRCRAFT			
+			
+			
+		
+			
+
+			--local zGround = checkAndGetGroundZ(locationdata.x,locationdata.y,locationdata.z,true)
+			--if zGround = 0.0 then 
+				-- zGround = locationdata.z
+			--end
+			--SetEntityCoords(GetPlayerPed(-1),locationdata.x, locationdata.y,locationdata.z)
+			--TriggerEvent("mt:missiontext2","Taken to the mission safehouse", 250)
+			--makeEntityFaceEntity( entity1, entity2 )
+		end
+	end
+
+
+end)
 
 function GetPlayers()
     local players = {}
@@ -15621,6 +16577,10 @@ end
 
 --"start baseevents" needs to be on in server.cfg:
 AddEventHandler("baseevents:onPlayerDied", function(player, reason, pos)
+
+	if GlobalBackup then 
+		TriggerEvent("RemoveBackup",true)
+	end
      --  print("mrprescuecount"..DecorGetInt(GetPlayerPed(-1),"mrprescuecount"))
 	mrprescuecountG = DecorGetInt(GetPlayerPed(-1),"mrprescuecount")
 	mrpobjectivecountG = DecorGetInt(GetPlayerPed(-1),"mrpobjrescuecount")
@@ -15641,9 +16601,9 @@ AddEventHandler("baseevents:onPlayerDied", function(player, reason, pos)
 		
 		--MissionRejuvenationSMSChance % chance per death of being harrassed by a mission contact!
 		if getMissionConfigProperty(MissionName, "MissionRejuvenationSMS") and math.random(1,100) <= getMissionConfigProperty(MissionName, "MissionRejuvenationSMSChance")  then 
-			
+			local input = MissionName
 			Wait(math.random(3000,7000))
-			doSMSRejuvenationMessage(MissionName) 
+			doSMSRejuvenationMessage(input) 
 		end		
 		
 		
@@ -15652,6 +16612,10 @@ end)
 --"start baseevents" needs to be on in server.cfg:
 AddEventHandler("baseevents:onPlayerKilled", function(player, killer, reason, pos)
 	-- print("mrp2rescuecount"..DecorGetInt(GetPlayerPed(-1),"mrprescuecount"))
+	if GlobalBackup then 
+		TriggerEvent("RemoveBackup",true)
+	end
+	
 	mrprescuecountG = DecorGetInt(GetPlayerPed(-1),"mrprescuecount")
 	mrpobjectivecountG = DecorGetInt(GetPlayerPed(-1),"mrpobjrescuecount")
 	--print("made it killed")
@@ -15671,9 +16635,9 @@ AddEventHandler("baseevents:onPlayerKilled", function(player, killer, reason, po
 		
 		--MissionRejuvenationSMSChance % chance per death of being harrassed by a mission contact!
 		if getMissionConfigProperty(MissionName, "MissionRejuvenationSMS") and math.random(1,100) <= getMissionConfigProperty(MissionName, "MissionRejuvenationSMSChance")  then 
-		
+			local input = MissionName
 			Wait(math.random(3000,7000))
-			doSMSRejuvenationMessage(MissionName) 
+			doSMSRejuvenationMessage(input) 
 		end				
 		
 	end 
@@ -15691,7 +16655,10 @@ AddEventHandler("playerSpawned", function(spawn)
 	SetPedMaxHealth(GetPlayerPed(-1), Config.DefaultPlayerMaxHealthAmount)
 	SetEntityHealth(GetPlayerPed(-1), Config.DefaultPlayerMaxHealthAmount)
 	--SetPedComponentVariation(GetPlayerPed(-1), 9, 0, 1, 2) --take away armor		
-	playerUpgraded = false	
+	playerUpgraded = false
+
+	--reset any MissionDrop Availability
+	MissionDropDid=false	
 	
 	--Make sure safe house vehicle claims are kept when player respawns
 	--as well as mission money for the session
@@ -15811,10 +16778,23 @@ AddEventHandler("playerSpawned", function(spawn)
 	end
 	
 	if MissionName ~="N/A" and Active == 1 then
+		local mname = MissionName
 		Wait(7000)
 		
 		--do it again, to bypass mission chat messages on mission launch
 		HelpMessage("Check your map for mission data. Press ~INPUT_SNIPER_ZOOM_OUT_SECONDARY~ to view mission info.",false,5000)	
+		Wait(5000)
+		
+		HelpMessage("Press ~INPUT_LOOK_BEHIND~ and ~INPUT_PICKUP~ for a quick tutorial on controls and mission help",false,5000)
+		Wait(5000)
+		
+		if getMissionConfigProperty(mname, "UseMissionDrop") and MissionDropBlip 
+		and not MissionDropDid
+		then 
+			HelpMessage("Mission Reinforcement Drop available. Press ~INPUT_LOOK_BEHIND~ and ~INPUT_COVER~ to move there",true,5000)
+			TriggerEvent("mt:missiontext2","~g~Mission Reinforcement Drop available for fast travel. Cost: $"..getMissionConfigProperty(mname, "UseMissionDropFee"), 4000)
+		end
+		
 	end		
 	  
 end)
@@ -16687,7 +17667,10 @@ AddEventHandler("doParadrop",function(dropCoords,k)
 		local doingDrop = true
 
         local aircraft = CreateVehicle(GetHashKey(aircraftmodel), rPlaneSpawn, heading, true, true)
+		
+		doVehicleMods(aircraftmodel,aircraft,MissionName)
 		DecorSetInt(aircraft,"mrpvehdid",65432) --not really needed
+		doVehicleMods(aircraftmodel,aircraft,MissionName) 
         SetEntityHeading(aircraft, heading)
         SetVehicleDoorsLocked(aircraft, 2) -- lock the doors so pirates don't get in
         SetEntityDynamic(aircraft, true)
@@ -16863,6 +17846,9 @@ function CrateDropMRP(weapon, ammo, planeSpawnDistance, dropCoords,thisMission)
         local heading = GetHeadingFromVector_2d(dx, dy) -- determine plane heading from coordinates
 
         aircraft = CreateVehicle(GetHashKey("volatol"), rPlaneSpawn, heading, true, true) --volatol
+		if MissionName ~="N/A" and Active == 1 then
+			doVehicleMods("volatol",aircraft,MissionName)
+		end
         SetEntityHeading(aircraft, heading)
         SetVehicleDoorsLocked(aircraft, 2) -- lock the doors so pirates don't get in
         SetEntityDynamic(aircraft, true)
@@ -16928,7 +17914,7 @@ function CrateDropMRP(weapon, ammo, planeSpawnDistance, dropCoords,thisMission)
         SetBlipSprite(blip, 408) -- 351 or 408 are both fine, 408 is just bigger
         --SetBlipNameFromTextFile(blip, "AMD_BLIPN")
 		BeginTextCommandSetBlipName("STRING")
-		AddTextComponentString("Safe House Supplies Drop")
+		AddTextComponentString("Safehouse Supplies Drop")
 		EndTextCommandSetBlipName(blip)	
         SetBlipScale(blip, 0.9)
         SetBlipColour(blip, 3)
@@ -16970,6 +17956,7 @@ function CrateDropMRP(weapon, ammo, planeSpawnDistance, dropCoords,thisMission)
 				Wait(0)
 				SetModelAsNoLongerNeeded(GetHashKey(requiredModels[i]))
 			end
+			doingDrop=false
 			return	
 		end
 		
@@ -17098,9 +18085,88 @@ Citizen.CreateThread(function()
 while true do
 
 	Citizen.Wait(0)
-		if (IsControlPressed(0, 15) and IsControlPressed(0, 44)) and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then 
+	
+	
+		--Left stick down + RB: drop/remove MissionDrop marker
+		if (IsControlPressed(0, 36) and IsControlPressed(0, 44)) and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 and true then
+			
+			TriggerEvent("doMissionDrop")
+			
+			Wait(3500)
+		end
+		
+		
+		--Right stick down + RB: teleport to MissionDrop
+		if (IsControlPressed(0, 26) and IsControlPressed(0, 44)) and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 and true then
+			
+			TriggerEvent("doMissionDropTeleport")
+			
+			Wait(3500)
+		end	
+
+		--Right stick down + LB: Mission Help
+		if (IsControlPressed(0, 26) and IsControlPressed(0, 38)) and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 and true then
+			if MissionName ~="N/A" and Active == 1  then 
+				TriggerEvent("mt:doMissionHelpText",MissionName)
+			
+					Wait(3500)
+				end
+		end	
+
+		--DPAD LEFT + RIGHT STICK DOWN
+		if (IsControlPressed(0, 15) and IsControlPressed(0, 26)) and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 and true then
+			if MissionName ~="N/A" and Active == 1 and not GlobalBackup then 
+				
+				TriggerEvent("SpawnBackup",MissionName)
+					
+					Wait(3500)
+					
+			end
+		end	
+		
+		--DPAD DOWN + RIGHT STICK DOWN
+		if (IsControlPressed(0, 20) and IsControlPressed(0, 26)) and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 and true then
+			if MissionName ~="N/A" and Active == 1 and GlobalBackup then 
+				
+
+				TriggerEvent("RemoveBackup",MissionName,true)
+				
+				Wait(2000)
+				Notify("~h~~r~Mission backup has left")
+				TriggerEvent("mt:missiontext2","~r~Mission backup has left", 4000)				
+				
+				Wait(1500)
+					
+			end
+		end			
+
+		--DPAD RIGHT + RIGHT STICK DOWN
+		if (IsControlPressed(0, 14) and IsControlPressed(0, 26)) and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 and true then
+			if MissionName ~="N/A" and Active == 1 and not GlobalBackup then 
+				if getMissionConfigProperty(MissionName, "BackupPedHeavyMunitionsAllow") then 
+					--TriggerEvent("ToggleBackup",MissionName)
+					GlobalBackupIndex=GlobalBackupIndex + 1
+					
+					if GlobalBackupIndex > #getMissionConfigProperty(MissionName, "BackupPedHeavyMunitions") then 
+						GlobalBackupIndex = 0
+						HelpMessage("Regular Backup selected. Cost: $"..getMissionConfigProperty(MissionName, "BackupPedFee"),true,5000)
+					else 
+				
+						HelpMessage("Backup with "..getMissionConfigProperty(MissionName, "BackupPedHeavyMunitionsText")[GlobalBackupIndex] .." selected. Cost: $"..getMissionConfigProperty(MissionName, "BackupPedHeavyMunitionsCost")[GlobalBackupIndex],true,5000)				
+						
+						
+					end
+					
+					
+				end	
+					Wait(1500)
+					
+			end
+		end					
+	
+		if (IsControlPressed(0, 36) and IsControlPressed(0, 37)) and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then 
 			if  Active == 1 and MissionName ~="N/A" then
-				--left  + right bumpers pressed together
+				
 				if (getMissionConfigProperty(MissionName, "UseSafeHouseCrateDrop") and (GetGameTimer() - getMissionConfigProperty(MissionName, "SafeHouseTimeTillNextUse")) > playerSafeHouse) then
 					
 					--if IsPedOnFoot(GetPlayerPed(-1)) then
@@ -17131,7 +18197,9 @@ while true do
 			
 			end
 			Wait(3500)	
-		elseif ((IsControlPressed(0, 44) and IsControlPressed(0, 14)) or (IsControlPressed(0, 34) and IsControlPressed(0, 35))) and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then
+		elseif (IsControlPressed(0, 44) and IsControlPressed(0, 14)) 
+		
+		and DecorGetInt(GetPlayerPed(-1),"mrpoptout") == 0 then
 			
 		--RB and dpad left (E + SCROLLWHEEL DOWN)
 			if  Active == 1 and MissionName ~="N/A" then
@@ -17182,6 +18250,692 @@ while true do
 		
 	end
 end)
+
+
+--
+
+AddEventHandler("SpawnBackup", function(input)
+   if not GlobalBackup and getMissionConfigProperty(input, "MissionDoBackup") then 
+		--print("made it")
+		Notify("~h~~g~Backup is on it's way")
+		TriggerEvent("mt:missiontext2","~g~Backup is on it's way", 4000)
+	
+		local modelHash = getMissionConfigProperty(input, "BackupPeds")[math.random(1, #getMissionConfigProperty(input, "BackupPeds"))]
+		--print("hey1")
+		RequestModel(GetHashKey(modelHash))
+		while not HasModelLoaded(GetHashKey(modelHash)) do
+			Wait(1)
+		end
+		--print("hey3")
+		local locationdata=GetEntityCoords(GetPlayerPed(-1),true)
+		
+		if getMissionConfigProperty(input, "BackupPedSpawnAtRoad") then
+			--get the first, or second? if first and player is in vehicle, may run over the ped?
+			local boolval, npos, pheading = GetNthClosestVehicleNodeWithHeading(locationdata.x,locationdata.y,locationdata.z,1,9,3.0,2.5)
+			locationdata = npos
+		end 
+		
+		
+		local rHeading = math.random(0, 360) + 0.0
+		local theta = (rHeading / 180.0) * 3.14		
+		local pcoords = vector3(locationdata.x, locationdata.y, locationdata.z) - vector3(math.cos(theta) *  math.floor(1.0), math.sin(theta) * math.floor( 1.0), 0.0)
+
+		local dx = locationdata.x - pcoords.x
+		local dy = locationdata.y - pcoords.y
+		rHeading = GetHeadingFromVector_2d(dx, dy)		
+		
+	    GlobalBackup = CreatePed(2, modelHash, pcoords.x, pcoords.y, pcoords.z,rHeading, true, true)
+		
+		--print("spawn")
+		
+		SetEntityHeading(GlobalBackup,rHeading) 
+		SetModelAsNoLongerNeeded(modelHash)
+		
+		SetEntityAsMissionEntity(GlobalBackup,true,true)
+		DecorSetInt(GlobalBackup,"mrppedid",9789789878) --high value to not conflict
+		DecorSetInt(GlobalBackup,"mrppedsafehouse",GetPlayerServerId(PlayerId()) + 4) 
+		--DecorSetInt(GlobalBackup,"mrppeddefendtarget",1)
+		SetPedMaxHealth(GlobalBackup, getMissionConfigProperty(input, "BackupPedHealth"))
+		SetEntityHealth(GlobalBackup, getMissionConfigProperty(input, "BackupPedHealth"))
+		SetPlayerMaxArmour(GlobalBackup,100)
+		AddArmourToPed(GlobalBackup, 100)
+		SetPedArmour(GlobalBackup, 100)		
+		
+		SetPedRelationshipGroupHash(GlobalBackup, GetHashKey("PLAYER"))
+		SetRelationshipBetweenGroups(5, GetHashKey("HATES_PLAYER"), GetHashKey("PLAYER"))
+		SetRelationshipBetweenGroups(5, GetHashKey("PLAYER"), GetHashKey("HATES_PLAYER"))
+		SetRelationshipBetweenGroups(0, GetHashKey("PLAYER"), GetHashKey("ISDEFENDTARGET"))
+		SetRelationshipBetweenGroups(0, GetHashKey("ISDEFENDTARGET"), GetHashKey("PLAYER"))			
+		
+		
+		SetPedFleeAttributes(GlobalBackup, 0, 0)
+		SetPedCombatAttributes(GlobalBackup, 5, true)	
+		SetPedCombatAttributes(GlobalBackup, 16, true)
+		SetPedCombatAttributes(GlobalBackup, 46, true)
+		SetPedCombatAttributes(GlobalBackup, 26, true)
+		SetPedCombatAttributes(GlobalBackup, 3, false) --dont leave vehicles
+		SetPedCombatAttributes(GlobalBackup, 2, true)
+		SetPedCombatAttributes(GlobalBackup, 1, true) --can use vehicles			
+		SetPedAlertness(GlobalBackup,3)
+		SetPedAccuracy(GlobalBackup,100)
+		
+		SetPedSeeingRange(GlobalBackup, getMissionConfigProperty(input, "BackupPedSensesDistance"))
+		SetPedHearingRange(GlobalBackup, getMissionConfigProperty(input, "BackupPedSensesDistance"))
+
+		SetPedPathAvoidFire(GlobalBackup,  1)
+		SetPedPathCanUseLadders(GlobalBackup,1)
+		SetPedPathCanDropFromHeight(GlobalBackup, 1)
+		SetPedPathCanUseClimbovers(GlobalBackup,1)			
+		
+		--add these 2 for other peds:
+		SetPedCanEvasiveDive(GlobalBackup,1)	
+		SetPedCanPeekInCover(GlobalBackup,1)
+		
+		local BackupPedFee = getMissionConfigProperty(input, "BackupPedFee")
+ 		
+		if GlobalBackupIndex == 0 then 
+			getBackupSafeHousePickups(input)
+			getBackupSafeHouseComponents(input)
+		else 
+			local v = getMissionConfigProperty(input, "BackupPedHeavyMunitions")[GlobalBackupIndex]
+			GiveWeaponToPed(GlobalBackup, GetHashKey(v), 1000, false)
+			SetPedInfiniteAmmo(GlobalBackup, true, GetHashKey(v))
+			BackupPedFee = getMissionConfigProperty(input, "BackupPedHeavyMunitionsCost")[GlobalBackupIndex]
+		end
+		
+		--default in game is 40 rounds for explosive heavy sniper rounds. Alter this for some balance:
+		SetPedAmmoByType(GlobalBackup, 0xADD16CB9, getMissionConfigProperty(input, "SafeHouseSniperExplosiveRoundsGiven"))	
+
+		SetAiWeaponDamageModifier(1.0) 
+		--full auto:
+		SetPedFiringPattern(GlobalBackup, 0xC6EE6B4C)
+		--buff up:
+		SetPedDiesWhenInjured(GlobalBackup, false)
+		SetPedSuffersCriticalHits(GlobalBackup, 0) 
+		
+		local ambientVoiceName = getMissionConfigProperty(input, "BackupVoiceName")
+		--GHK Add blackops preferred variations
+		math.randomseed(GetGameTimer())
+		if IsPedModel(GlobalBackup, "s_m_y_blackops_01") then 
+			--add vest
+			if math.random(1,4)> 2 then 
+				SetPedPropIndex(GlobalBackup, 0, 1, 0, 1)
+			end 
+			
+			if math.random(1,4)> 2 then 
+				SetPedPropIndex(GlobalBackup, 1, 0, 0, 1)
+			end 			
+			
+			SetPedComponentVariation(GlobalBackup, 3, 0, 0, 1)
+			
+			ambientVoiceName="S_M_Y_BLACKOPS_01_WHITE_MINI_01"
+			--SetAmbientVoiceName(GlobalBackup, "S_M_Y_BLACKOPS_01_WHITE_MINI_01")
+			--print("hey1")
+		
+		elseif IsPedModel(GlobalBackup, "s_m_y_blackops_02") then 
+			SetPedComponentVariation(GlobalBackup, 0, 1, 0, 0)
+			SetPedComponentVariation(GlobalBackup, 3, 1, 0, 0)
+			if math.random(1,4)> 2 then 
+				SetPedPropIndex(GlobalBackup, 0,1,0,1)
+			end
+			if math.random(1,4)> 2 then 
+				SetPedPropIndex(GlobalBackup, 1,0,1,1)
+			end
+			ambientVoiceName="S_M_Y_BLACKOPS_02_WHITE_MINI_01"
+			--SetAmbientVoiceName(GlobalBackup, "S_M_Y_BLACKOPS_02_WHITE_MINI_01")
+			--print("hey2")
+		elseif IsPedModel(GlobalBackup, "s_m_y_blackops_03") then 
+			--add glasses
+			SetPedComponentVariation(GlobalBackup, 0, 1, 0, 0)
+			if math.random(1,4)> 2 then 
+				SetPedComponentVariation(GlobalBackup, 2, 1, 0, 0)
+			end 
+			if math.random(1,4)> 2 then 
+				SetPedPropIndex(GlobalBackup, 1,0,0,1)
+			end
+			--print("hey3")
+			--no _03 voice....so use _02
+			ambientVoiceName="S_M_Y_BLACKOPS_02_WHITE_MINI_01"
+		--	SetAmbientVoiceName(GlobalBackup, "S_M_Y_BLACKOPS_02_WHITE_MINI_01")
+		elseif IsPedModel(GlobalBackup, "s_m_y_swat_01") then 
+			SetPedComponentVariation(GlobalBackup, 10, 0, 1, 0)
+			ambientVoiceName="S_M_Y_SWAT_01_WHITE_FULL_01"
+			--SetAmbientVoiceName(GlobalBackup, "S_M_Y_SWAT_01_WHITE_FULL_01")
+			--print("hey4")
+		end
+		--GHK End blackops preferred variations			
+		--print(ambientVoiceName)
+		
+
+		--put Backup in a free seat if Playerped is in one.
+		if GetVehiclePedIsIn(GetPlayerPed(-1), false ) ~= 0 then PutBackupIntoPlayerVehicle(GetVehiclePedIsIn(GetPlayerPed(-1), false ),input) end
+		
+			if BackupPedFee > 0 then
+
+					local currentmoney = 0
+					local rejuvcost = BackupPedFee
+					local totalmoney = 0		
+					
+					local _,currentmoney = StatGetInt('MP0_WALLET_BALANCE',-1)
+					playerMissionMoney =  0 - rejuvcost
+					totalmoney =  currentmoney - rejuvcost		
+						
+					if UseESX then 
+						TriggerServerEvent("paytheplayer", totalmoney)
+						TriggerServerEvent("UpdateUserMoney", totalmoney)
+					else
+							--DecorSetInt(GetPlayerPed(-1),"mrpplayermoney",totalmoney)
+						DecorSetInt(GetPlayerPed(-1),"mrpplayermoney",DecorGetInt(GetPlayerPed(-1),"mrpplayermoney") + playerMissionMoney)			
+						mrpplayermoneyG = DecorGetInt(GetPlayerPed(-1),"mrpplayermoney")			
+						StatSetInt('MP0_WALLET_BALANCE',totalmoney, true)
+					end	
+
+					Notify("~h~~b~Mission Backup Fee: ~g~$"..BackupPedFee)
+					
+			end		
+				--arm rpgs if the ped has them...
+				--AI will not use them
+				
+				--[[--not going to
+				if HasPedGotWeapon(GlobalBackup,GetHashKey("weapon_hominglauncher"),false) then 
+					SetCurrentPedWeapon(GlobalBackup,GetHashKey("weapon_hominglauncher"),true)
+					print("HEY")
+				elseif HasPedGotWeapon(GlobalBackup,GetHashKey("weapon_rpg"),false)  then
+					SetCurrentPedWeapon(GlobalBackup,GetHashKey("weapon_rpg"),true)
+				--elseif then
+					
+				else
+					SetCurrentPedWeapon(GlobalBackup,GetBestPedWeapon(GlobalBackup,0),true)
+				end
+				]]--
+				--The Ped will switch weapons once fighting, so no point in having the above./\
+		SetCurrentPedWeapon(GlobalBackup,GetBestPedWeapon(GlobalBackup,0),true)
+		
+		--Wait(1000)
+		PlaySoundFrontend(-1, "GO", "HUD_MINI_GAME_SOUNDSET", 1)
+		Wait(1000)
+		TriggerServerEvent("sv:playvoicesound",GetPlayerServerId(PlayerId()) + 4,"mrppedsafehouse", getMissionConfigProperty(input, "BackupVoiceGreet"), ambientVoiceName)
+   else 
+	--Wait(3500)
+   --message that player has used their backup
+		Notify("~h~~g~Mission backup is not available")
+		TriggerEvent("mt:missiontext2","~g~Mission backup is not available", 4000)
+		
+   end
+   
+end)
+
+
+AddEventHandler("MoveBackupToPlayer", function()
+		local locationdata=GetEntityCoords(GetPlayerPed(-1),true)
+		local rHeading = math.random(0, 360) + 0.0
+		local theta = (rHeading / 180.0) * 3.14		
+		
+		--local pcoords = vector3(locationdata.x, locationdata.y, locationdata.z) - vector3(math.cos(theta) *  math.floor(1.0), math.sin(theta) * math.floor( 1.0), 0.0)
+		local pcoords = GetOffsetFromEntityInWorldCoords( GetPlayerPed(-1), 0, -1.0, 0 )
+		--pcoords = locationdata
+		--wait a little not to be right on top of the player
+		Wait(1000)
+		SetEntityCoords(GlobalBackup,pcoords.x,pcoords.y,pcoords.z)
+		local dx = locationdata.x - pcoords.x
+		local dy = locationdata.y - pcoords.y
+		rHeading = GetHeadingFromVector_2d(dx, dy) --+180 face away from player?
+		SetEntityHeading(GlobalBackup,rHeading) 		
+		--print("teleported")
+end)
+
+
+
+Citizen.CreateThread(function()
+		
+	local taskfollow = false
+	local taskLeaveVehicle = false
+	local taskDied = false
+	while true do
+		--Wait(0)
+		
+		if (Active == 1) and  MissionName ~="N/A" and GlobalBackup then
+			local input = MissionName
+			local playerped = GetPlayerPed(-1)
+			local vehicle = GetVehiclePedIsIn(playerped, false )
+			local bvehicle = GetVehiclePedIsIn(GlobalBackup, false )
+			local pcoords = GetEntityCoords(playerped,true)
+			local bcoords = GetEntityCoords(GlobalBackup,true)
+			
+			
+			
+			
+			Wait(0)
+			
+			
+			if (Active == 1) and  MissionName ~="N/A" and GlobalBackup and IsEntityDead(GlobalBackup) then 
+			--ped died
+				taskfollow = false
+				taskLeaveVehicle = false
+				
+				--print("backup died")
+				if not taskDied then 
+					Notify("~h~~r~Your mission backup has died")
+					TriggerEvent("mt:missiontext2","~h~~r~Your mission backup has died", 4000)
+					TriggerEvent("RemoveBackup")
+					taskDied = true
+				end
+				
+				Wait(0)			
+			
+			elseif vehicle~=0 and vehicle ~= bvehicle then 
+				--player is now in vehicle, place GlobalBackup in vehicle as passenger, if a free seat. 
+				--ClearPedtasks first?
+					--print("not in the same vehicle as the player")
+				
+				taskLeaveVehicle = false
+				taskfollow = false
+				taskDied = false
+				--print(IsEntityDead(GlobalBackup))
+				if Citizen.InvokeNative(0x2D34FC3BC4ADB780,vehicle) and not IsPedRagdoll(GlobalBackup) 
+				and not IsPedFatallyInjured(GlobalBackup) and not IsPedProne(GlobalBackup)
+				
+				then --AreAnyVehicleSeatsFree
+					--print(IsPedProne(GlobalBackup))
+					PutBackupIntoPlayerVehicle(GetVehiclePedIsIn(playerped, false),input)
+				else
+					--cannot get in the vehicle, so try and follow
+					if not taskfollow then 
+						--taskfollow = true
+						--TaskGoToEntity below DOES NOT WORK, not sure why...						
+						--ClearPedTasksImmediately(GlobalBackup, true)
+						
+						--TaskGoToEntity(GlobalBackup, playerped, -1, 5.0, 2.0,1073741824, 0)
+						
+						--TaskGoToCoordAnyMeans(GlobalBackup, pcoords.x,pcoords.y,pcoords.z, 2.0, 0, 0, 786603, 0xbf800000)
+						
+					end				
+				end
+			elseif vehicle==0 and vehicle ~= bvehicle  then
+				--player not in vehicle, so get out as well, if I am in a vehicle
+				--combat attribute of the backup is not to leave vehicle, so hopefully this works,
+				--may need to use secon arg as 16
+				--print("player not in vehicle, but I am")
+				taskfollow = false
+				taskDied = false
+				--ClearPedtasks first?
+				--SetPedCombatAttributes(GlobalBackup, 3, true)
+				--SetPedCombatAttributes(GlobalBackup, 1, false)
+				--ClearPedTasks(GlobalBackup)
+				if not taskLeaveVehicle then 
+					--print("task leave vehicle")
+					--SetPedCombatAttributes(GlobalBackup, 3, true)
+					ClearPedTasksImmediately(GlobalBackup, true)
+					TaskLeaveVehicle(GlobalBackup,64)
+					--Wait(10000)
+					taskLeaveVehicle= true
+				end
+			--elseif vehicle ~=0 and GetVehiclePedIsIn(playerped, false )~=0 and  GetVehiclePedIsIn(playerped, false ) ~= vehicle then
+				--player left old vehicle and is in new one (via teleport probably)... 
+				--taskfollow = false
+				--print("player switched vehicles")
+				--ClearPedtasks first?
+				--PutPlayerIntoTargetVehicle(GetVehiclePedIsIn(playerped, false),MissionName)
+			
+			elseif vehicle==0 and GetDistanceBetweenCoords(bcoords,pcoords,true) >= getMissionConfigProperty(input, "BackupPedTeleportDistance") 
+			and not IsPedClimbing(playerped) and not IsPedJumping(playerped)
+			and not IsPedRagdoll(playerped) --and not IsPedInParachuteFreeFall(playerped)
+			then 
+				
+				--teleport backup to the player, if player is on foot, and distance > BackupPedTeleportDistance
+				taskfollow = false
+				taskLeaveVehicle = false
+				taskDied = false
+				--print("teleport")
+				TriggerEvent("MoveBackupToPlayer")
+
+				--print("teleport")
+				
+			elseif GetDistanceBetweenCoords(pcoords,bcoords,true) >=  getMissionConfigProperty(input, "BackupPedMaxDistance") and bvehicle == 0
+			
+			and not IsPedShooting(GlobalBackup)
+			
+			--[[and not IsPedReloading(GlobalBackup) <-- returning 1 all the time, due to infinite ammo?]]--
+
+			and not IsPedGettingIntoAVehicle(GlobalBackup)
+			and not IsPedClimbing(GlobalBackup)and not IsPedGoingIntoCover(GlobalBackup) and not IsPedInMeleeCombat(GlobalBackup)
+			and not Citizen.InvokeNative(0x26AF0E8E30BD2A2C,GlobalBackup) --[[opening a door]]-- 
+			and not IsPedInCover(GlobalBackup,true) 
+			
+			and not Citizen.InvokeNative(0x6A03BF943D767C93,GlobalBackup) --[[in high cover]]-- 
+			
+			then 
+				--print(">maxdistance and shooting:"..tostring(IsPedShooting(GlobalBackup)))
+				--print(">maxdistance and reloaing:"..tostring(IsPedReloading(GlobalBackup)))
+				--backup is 100m away from the player, lets have them move closer.
+				--ClearPedTasks(GlobalBackup)
+				taskLeaveVehicle = false
+				taskDied = false
+				if not taskfollow then 
+					
+					taskfollow = true
+					TaskGoToEntity(GlobalBackup, playerped, -1, 5.0, 2.0,1073741824, 0)
+				end
+
+			
+			--[[
+			elseif GetDistanceBetweenCoords(pcoords,bcoords,true) < 5 and not GetVehiclePedIsIn(GlobalBackup, false) 
+			and not IsPedShooting(GlobalBackup) and not IsPedReloading(GlobalBackup) and not IsPedGettingIntoAVehicle(GlobalBackup)
+			and not IsPedClimbing(GlobalBackup)and IsPedGoingIntoCover(GlobalBackup) and not IsPedInMeleeCombat(GlobalBackup)
+			and not IsPedOpeningADoor(GlobalBackup) and not IsPedInCover(GlobalBackup,true) and not IsPedInHighCover(GlobalBackup)
+			then 
+				--lets clear TaskGoToEntity if active. I could not work out what taskid that is for GetIsTaskActive
+				--even from this list: https://pastebin.com/2gFqJ3Px
+				--may not be needed, since the soon as the ped  sees enemies, task will break.
+				ClearPedTasks(GlobalBackup)
+							
+			]]--
+			--end
+		
+
+			else 
+				taskfollow = false	
+				taskLeaveVehicle = false
+				taskDied = false				
+				--print("other:"..tostring(GetVehiclePedIsIn(GlobalBackup, false)))
+				Wait(0)
+			end
+		else 
+			taskfollow = false
+			taskLeaveVehicle = false
+			taskDied = false
+			--print("no mission OR GLOBALBACKUP?")
+			Wait(0)
+		end
+		
+	end
+	
+end)
+
+
+AddEventHandler("RemoveBackup", function(nowait)
+		
+		if not GlobalBackup then 
+			return
+		end
+		
+		if not nowait then 
+			Wait(5000)
+		end 
+		
+		local oldblip = GetBlipFromEntity(GlobalBackup)
+		if DoesBlipExist(oldblip) then 
+			
+			RemoveBlip(GlobalBackup)
+		end
+			--print("remove")
+			DecorRemove(GlobalBackup, "mrppedid")
+			DecorRemove(GlobalBackup, "mrppedsafehouse")
+			DeleteEntity(GlobalBackup)
+			GlobalBackup=nil		
+
+end)
+
+--place player into the target's vehicle 
+--first look for turrets, then non-turret seatids
+--only place if the seatid is free
+function PutBackupIntoPlayerVehicle(PedVehicle,input)
+	--already in the vehicle
+	if PedVehicle == GetVehiclePedIsIn(GlobalBackup,false) then 
+		return
+	end
+
+	local vcoords = GetEntityCoords(PedVehicle,true)
+	local bcoords = GetEntityCoords(GlobalBackup,true)
+	local closeenough = (GetDistanceBetweenCoords(bcoords,vcoords,true) < 10)
+	
+	
+	--print("made it")
+	local maxseatid = GetVehicleMaxNumberOfPassengers(PedVehicle) - 1
+		--print(vehicleHash.."  maxseatid:"..maxseatid)
+	local setPed=false
+	--get override, like for apc gun, which is not a turret...
+	local prefseat = getPreferrableSeatId(input,GetEntityModel(PedVehicle))
+	
+	if prefseat ~=nil and IsVehicleSeatFree(PedVehicle, prefseat) then
+			
+			
+			if closeenough then 
+				TaskEnterVehicle( GlobalBackup, PedVehicle, 20000,prefseat, 1.5, 1, 0)
+			else
+				SetPedIntoVehicle(GlobalBackup, PedVehicle, prefseat)
+			end						
+			
+			--SetPedIntoVehicle(GlobalBackup, PedVehicle, prefseat)
+			
+			setPed=true
+			--print("prefseat:"..prefseat)
+			Wait(3500)
+			return 
+		
+	end
+	
+		
+		for v = 0,maxseatid,1 
+		do
+			--print("vehicleseatid:"..v)
+			--look for turret seats first...IsTurretSeat...
+			if  Citizen.InvokeNative(0xE33FFA906CE74880,PedVehicle, v) and IsVehicleSeatFree(PedVehicle, v) then
+				
+					if closeenough then 
+						TaskEnterVehicle( GlobalBackup, PedVehicle, 20000,v, 1.5, 1, 0)
+					else
+						SetPedIntoVehicle(GlobalBackup, PedVehicle, v)
+					end			
+				--SetPedIntoVehicle(GlobalBackup, PedVehicle, v)
+				setPed=true
+			
+				Wait(3500)
+				return 
+			end
+			
+		end
+		
+		if not setPed then 
+		
+			for v = 0,maxseatid,1 
+			do
+				--print("vehicleseatid:"..v)
+			
+				if IsVehicleSeatFree(PedVehicle, v) then
+					
+					if closeenough then 
+						TaskEnterVehicle( GlobalBackup, PedVehicle, 20000,v, 1.5, 1, 0)
+					else
+						SetPedIntoVehicle(GlobalBackup, PedVehicle, v)
+					end
+					--SetPedIntoVehicle(GlobalBackup, PedVehicle, v)
+					setPed=true
+				
+					Wait(3500)
+					return
+				end
+				
+			end		
+		
+		end
+		
+		if not setPed then--print
+			--Notify("~h~~r~All seats are taken in the target's vehicle")
+			--TriggerEvent("mt:missiontext2","~r~All seats are taken in the target's vehicle", 4000)
+			--Wait(3500)
+		end
+		
+		
+		return setPed
+
+
+end
+
+
+function getBackupSafeHousePickups(oldmission)
+
+	local weaponlist = {}
+	if Config.Missions[oldmission].SpawnSafeHousePickups ~=nil then
+		weaponlist = Config.Missions[oldmission].SpawnSafeHousePickups
+
+	else
+		weaponlist = Config.SpawnSafeHousePickups
+		
+	end 
+	giveWeaponsToBackup(weaponlist) 
+end
+
+function giveWeaponsToBackup(weaponlist) 
+	for i, v in pairs(weaponlist) do
+		GiveWeaponToPed(GlobalBackup, GetHashKey(v), 1000, false)
+		SetPedInfiniteAmmo(GlobalBackup, true, GetHashKey(v))
+	end
+
+end
+
+
+function getBackupSafeHouseComponents(oldmission)
+
+	local weaponlist = {}
+	if Config.Missions[oldmission].SpawnSafeHouseComponents ~=nil then
+		weaponlist = Config.Missions[oldmission].SpawnSafeHouseComponents
+
+	else
+		weaponlist = Config.SpawnSafeHouseComponents
+		
+	end 
+	giveComponentsToBackup(weaponlist) 
+end
+
+
+function giveComponentsToBackup(weaponlist) 
+	
+	for i, v in pairs(weaponlist) do
+		local component
+		local weapon
+		for token in string.gmatch(v, "[^%s]+") do
+			if(component) then
+				weapon=token
+			else 
+				component=token
+			end
+		end
+		if HasPedGotWeapon(GlobalBackup, GetHashKey(weapon), false) then
+			GiveWeaponComponentToPed(GlobalBackup, GetHashKey(weapon), GetHashKey(component))
+			
+		end
+	end
+
+end
+
+
+Citizen.CreateThread(function()
+	local player = GlobalBackup
+	local healthtimer = 0
+	local armourtimer = 0
+	local lastarmour = 0
+	local lasthealth = 0
+	local lasthealthcheck = 0
+	local RegenHealthAndArmour = Config.BackupPedRegen
+	--local IsCrackDownMode = Config.SafeHouseCrackDownMode
+	--local CrackDownModeHealthAmount = Config.SafeHouseCrackDownModeHealthAmount
+	
+	local UpgradeMultiplier = 1
+	local multiplier = 1
+	
+	--if IsCrackDownMode then
+		UpgradeMultiplier = math.floor(Config.BackupPedHealth/200) --default health is 200
+	--else 
+		--UpgradeMultiplier = 1 --default health is 200
+	--end
+	
+	
+    while true do
+		if GlobalBackup and not IsEntityDead(GlobalBackup) then 
+			lasthealthcheck = GetEntityHealth(player)
+		   --print("pedhealth:"..GetEntityHealth(player))
+			Citizen.Wait(150)
+			player =  GlobalBackup
+			-- if Active == 1 and MissionName ~="N/A" then
+				--if playerUpgraded and IsCrackDownMode then 
+					 multiplier = UpgradeMultiplier
+				--else 
+					 --multiplier = 1
+				--end
+				
+				--print("multiplier:"..multiplier)
+				--print(string.format("%02d", tostring(math.floor((GetGameTimer())/1000) % 60)))
+				--print("regen"..tostring(player))
+				
+				--print("statement:"..tostring(RegenHealthAndArmour and player and not IsEntityDead(player)))
+			
+				if RegenHealthAndArmour and player and not IsEntityDead(player) then
+				
+					--print("timer")
+					if GetPedArmour(player) < GetPlayerMaxArmour(player) then
+							healthtimer = 0
+							--print("armour timer")
+							if lastarmour == GetPedArmour(player) then
+								if lasthealth == GetEntityHealth(player) then
+									armourtimer = armourtimer +3
+									if armourtimer > 99 then						--Initial delay before armour starts to regenerate
+															
+										AddArmourToPed(player, 5*multiplier)			--Armour regen amount. Must be an integer(+1,+2,+3 etc.)
+										lastarmour =  GetPedArmour(player)
+										armourtimer = 50							--Armour regen rate. 1200 = instant
+									end
+									else
+									lasthealth = GetEntityHealth(player)
+									armourtimer = 0
+								end
+								else
+								lastarmour = GetPedArmour(player)
+								armourtimer = 0
+							end
+					else
+						
+							armourtimer = 0
+							if GetEntityHealth(player) < GetEntityMaxHealth(player) then
+								--print("pedhealth:"..GetEntityHealth(player))
+								--reset timer if injured since last check or busy
+								if ((GetEntityHealth(player) < lasthealthcheck)  or IsPedShooting(player) or IsPedInMeleeCombat(player) or
+							IsPedRagdoll(player) or IsPedSwimmingUnderWater(player) or IsEntityOnFire(player) or
+							IsEntityInAir(player) or IsPedRunning(player) or IsPedSprinting(player)) then
+									healthtimer =  0
+										
+								else
+									healthtimer = healthtimer + 5 --+10
+									
+								end
+								if healthtimer > 99 then							--Health regen rate
+											--print("made it:"..GetEntityHealth(player)+5*multiplier)
+									SetEntityHealth(player, GetEntityHealth(player)+5*multiplier)	--Health regen amount. Must be an integer
+									healthtimer = 50 --0
+								end
+							else
+								ClearPedBloodDamage(player)
+								healthtimer = 0
+							end
+					end		
+				
+				end
+			--end
+			
+		else
+			
+		
+			
+			Wait(150)
+		end
+    end
+end) 
+
+
+
+
+
+
 
 AddEventHandler("onResourceStop", function(resource)
     if resource == GetCurrentResourceName() then
@@ -17397,7 +19151,7 @@ end)
 --END SCALEFORM FUNCTIONS
 
 --weather/time 
-
+--[[
 Citizen.CreateThread(function()
     while true do
 		SetWeatherTypePersist("EXTRASUNNY")
@@ -17414,4 +19168,4 @@ Citizen.CreateThread(function()
         NetworkOverrideClockTime(12, 1, 1)
     end
 end)
-
+]]--

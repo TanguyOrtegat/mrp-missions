@@ -28,6 +28,16 @@ MissionTriggerStartPoint={x=0.0,y=0.0,z=0.0}
 IndoorMissions=true --Add this to Regular indoor missions that happen in indoor locations like Doomsday Heist Bunker or Humane Labs to have Peds/Vehicles spawn dynamically, which fixes this problem: 
 --https://forum.fivem.net/t/spawning-indoors-and-underground-have-invisible-peds-npcs/373532
 --You can override this, to have the vehicle/ped spawn at mission start by adding the attribute 'outside=true' to the Ped or Vehicle (**see Regular Mission Setup further down**)
+-- Creates dynamic spawns, not only for indoors missions
+-- which means spawns entities for the nearest player who is within
+--IndoorsMissionSpawnRadius of where the entity should spawn. NOTE: Does not work for IsRandom missions.
+
+
+--Not only for Indoors Misssions...
+--Used with IndoorsMissions=true which turns on 
+--dynamic spawning. Which means when the player is within 
+--IndoorsMissionSpawnRadius of where entity should spawn at.
+Config.IndoorsMissionSpawnRadius=30
 
 IndoorsMissionStrongSpawnCheck = true --Used with IndoorMissions=true. Does raytracing on players within 300m of spawn location, to make sure the NPC/Vehicle doesnt just appear out of nowhere in front of a player. 
 --if any player is in the line of sight it will not spawn. Sometimes you will not want this on.
@@ -74,6 +84,12 @@ IsDefendTargetOnlyPlayersDamagePeds —Override, since for IsDefendTarget missio
 IsDefendTargetPassenger —for escort mission, force target NPC to defend into passenger seat. default seatid 0
 IsDefendTargetPassengerSeatId —if IsDefendTargetPassenger= true, what seated if not 0?
 
+- Meant for random missions where IsDefendTargetPassenger=true. Allows the target ped to go into a specific seatid, based on vehicle model name. Mission44 uses it, to shuffle the transport target passenger to a non-turret seat. IsDefendTargetPassengerSeatId, if set, will override this:
+IsDefendTargetSeatIds = {
+	valkyrie=2,akula = 0, savage=2,buzzard=0
+	}
+
+
 —SEE FURTHER DOWN AS WELL, MORE IsDefendTarget settings explained above.
 
 
@@ -119,9 +135,67 @@ Config.RemoveWeaponsAndUpgradesAtMissionEnd = false
 --same thing, but at mission start
 --RemoveWeaponsAndUpgradesAtMissionStart = true,
 
+--Use Mission Reinforcement Point where players can fast travel to after respawn?
+Config.UseMissionDrop=true
+-- optional fee and notification if > 0
+Config.UseMissionDropFee=500
+
 
 -show help notifications on how to play and controls at mission start?
 Config.DoHelpScreens = false
+
+
+
+Config.BackupPeds={ 's_m_y_blackops_01', 's_m_y_blackops_02', 's_m_y_blackops_03',  's_m_y_swat_01' }
+
+-- L3 + DPAD LEFT,
+Config.MissionDoBackup=true
+
+Config.BackupPedHealth=5000
+
+Config.BackupPedFee=1000
+
+Config.BackupPedRegen=true
+
+--spawn the backup ped not within 1m of the player, but at the nearest vehicle node on a road. 
+Config.BackupPedSpawnAtRoad=true
+
+--allow extra backup peds with special weapons? 
+Config.BackupPedHeavyMunitionsAllow=true
+
+-- toggle regular backup ped with these 3 via  L3 + DPAD RIGHT
+Config.BackupPedHeavyMunitions={"weapon_rpg","weapon_hominglauncher","weapon_minigun"}
+Config.BackupPedHeavyMunitionsText={"RPG Launcher","Homing Launcher","Minigun"}
+Config.BackupPedHeavyMunitionsCost={2500,3500,2500}
+
+--
+
+--Mission Backups Start:
+--what sight and hearing range?
+Config.BackupPedSensesDistance=1500.0 is heavy sniper max range
+
+--https://gist.github.com/alexguirre/0af600eb3d4c91ad4f900120a63b8992
+Config.BackupVoiceName="S_M_Y_BLACKOPS_01_WHITE_MINI_01"
+Config.BackupVoiceGreet="COVER_YOU"
+--how far away should the backup start trying to move back to the player
+--should be less than 300m
+
+Config.BackupPedMaxDistance=10
+
+--Distance away from the ped for them to 
+--teleport in, when player is on foot
+Config.BackupPedTeleportDistance=300
+
+
+--Mission Backups End
+
+--when joining a vehicle in IsDefendTarget mission vehicle, 
+--or when a player backup ped tries to join
+--where should the player or backup go go to?
+--overrides  the turrets first logic... for vehicles like apcs.
+Config.PreferrableSeatIds = {
+	 apc=0
+}
 
 
 --Spawn mission vehicles with a random livery
@@ -452,6 +526,44 @@ Config.ResetSafeHouseOnRespawn = false
 Config.ResetSafeHouseOnNewMission = false
 
 
+--turn on ambient anims and chance of greeting from safe house peds
+--this will run throughout the mission, by the host peer that spawned them.
+--there are random waits, but about a 30 to 40 second loop where they wiil
+--do 3 anims and will attempt to greet at lease once... if chance ==100
+Config.SafeHouseDoAnimsAndGreets=true
+
+--overrides to have one or the other, since the leader can protect the safe house:
+--both still need Config.SafeHouseDoAnimsAndGreetsDoctor=true
+Config.SafeHouseDoAnimsAndGreetsLeader=false
+Config.SafeHouseDoAnimsAndGreetsDoctor=true
+--Since the code looks at 3rd character in model name for 'f' to 
+--determine if use female voicename, but you have an ig_* model say
+--setting either below to true will force a female voice. Only works when 
+--there are no male ig_* etc... or regular male models:
+Config.SafeHouseLeaderForceFemale=false
+Config.SafeHouseDoctorForceFemale=false
+--https://gist.github.com/alexguirre/0af600eb3d4c91ad4f900120a63b8992
+Config.SafeHousePedMaleLeaderVoiceNames = {"S_M_Y_BLACKOPS_01_WHITE_01","TREVOR_NORMAL","S_M_Y_SWAT_01_WHITE_FULL_01"
+,"S_M_Y_BLACKOPS_01_WHITE_MINI_01"
+}
+Config.SafeHousePedMaleLeaderGreetSpeech = {"GENERIC_HI","GENERIC_HI","GENERIC_HI","GENERIC_HOWS_IT_GOING"
+
+} --MUST be same length as above array/\
+Config.SafeHousePedFemaleLeaderVoiceNames = {"S_F_Y_COP_01_WHITE_FULL_02","S_F_Y_COP_01_WHITE_FULL_01"}
+Config.SafeHousePedFemaleLeaderGreetSpeech = {"GENERIC_HI","GENERIC_HI"} --MUST be same length as above array/\
+Config.SafeHousePedLeaderChanceToGreet=10 --per mission
+--https://pastebin.com/6mrYTdQv
+Config.SafeHousePedLeaderAnims={"WORLD_HUMAN_SMOKING","CODE_HUMAN_POLICE_INVESTIGATE","EAR_TO_TEXT","WORLD_HUMAN_STAND_MOBILE_UPRIGHT","WORLD_HUMAN_GUARD_PATROL","WORLD_HUMAN_GUARD_STAND","WORLD_HUMAN_GUARD_STAND_ARMY",
+"WORLD_HUMAN_STAND_IMPATIENT_UPRIGHT"}
+
+Config.SafeHousePedMaleDoctorVoiceNames = {"MICHAEL_NORMAL","DAVE","S_M_Y_COP_01_WHITE_FULL_01"}
+Config.SafeHousePedMaleDoctorGreetSpeech = {"GENERIC_HI","GENERIC_HI","GENERIC_HI"}--MUST be same length as above array/\
+Config.SafeHousePedFemaleDoctorVoiceNames = {"S_F_Y_COP_01_WHITE_FULL_02","S_F_Y_COP_01_WHITE_FULL_01"}
+Config.SafeHousePedFemaleDoctorGreetSpeech = {"GENERIC_HI","GENERIC_HI"}--MUST be same length as above array/\
+Config.SafeHousePedDoctorChanceToGreet=10  --per mission
+Config.SafeHousePedDoctorAnims={"EAR_TO_TEXT","WORLD_HUMAN_CLIPBOARD","WORLD_HUMAN_STAND_MOBILE_UPRIGHT","CODE_HUMAN_MEDIC_TIME_OF_DEATH","CODE_HUMAN_POLICE_INVESTIGATE","WORLD_HUMAN_GUARD_PATROL","WORLD_HUMAN_GUARD_STAND","WORLD_HUMAN_GUARD_STAND_ARMY","WORLD_HUMAN_STAND_IMPATIENT_UPRIGHT"}
+
+--end safehouse ambient greets and anims
 
 --pawns player to the current mission safehouse when they spawn/respawn
 Config.TeleportToSafeHouseOnSpawn = true
